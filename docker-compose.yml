@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sample-repo:/repo
+      - db-data:/data
+    environment:
+      - REPO_PATH=/repo
+      - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
+      - LLM_MODE=mock
+      - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
