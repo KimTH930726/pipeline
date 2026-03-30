@@ -15,9 +15,11 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
     async def save(self, sandbox: Sandbox) -> Sandbox:
         orm = SandboxORM(
             branch=sandbox.branch,
-            port=sandbox.port,
-            pid=sandbox.pid,
+            backend_port=sandbox.backend_port,
+            frontend_port=sandbox.frontend_port,
             status=sandbox.status.value,
+            worktree_path=sandbox.worktree_path,
+            project_name=sandbox.project_name,
             created_at=sandbox.created_at,
         )
         self._db.add(orm)
@@ -33,7 +35,8 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
         orm = result.scalar_one_or_none()
         if orm:
             orm.status = sandbox.status.value
-            orm.pid = sandbox.pid
+            orm.worktree_path = sandbox.worktree_path
+            orm.project_name = sandbox.project_name
             await self._db.commit()
 
     async def delete(self, sandbox_id: int) -> bool:
@@ -61,16 +64,24 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
         return [self._to_entity(r) for r in result.scalars().all()]
 
     async def get_used_ports(self) -> set[int]:
-        result = await self._db.execute(select(SandboxORM.port))
-        return {row[0] for row in result.all()}
+        result = await self._db.execute(
+            select(SandboxORM.backend_port, SandboxORM.frontend_port)
+        )
+        ports = set()
+        for row in result.all():
+            ports.add(row[0])
+            ports.add(row[1])
+        return ports
 
     @staticmethod
     def _to_entity(orm: SandboxORM) -> Sandbox:
         return Sandbox(
             id=orm.id,
             branch=orm.branch,
-            port=orm.port,
-            pid=orm.pid,
+            backend_port=orm.backend_port,
+            frontend_port=orm.frontend_port,
             status=SandboxStatus(orm.status),
+            worktree_path=orm.worktree_path,
+            project_name=orm.project_name,
             created_at=orm.created_at,
         )

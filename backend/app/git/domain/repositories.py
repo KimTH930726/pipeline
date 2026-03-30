@@ -25,3 +25,19 @@ class GitRepositoryPort(ABC):
 
     @abstractmethod
     def revert_to(self, branch: str, target_sha: str) -> str: ...
+
+    @abstractmethod
+    def create_branch(self, new_branch: str, base_branch: str) -> Branch: ...
+
+    @abstractmethod
+    def delete_branch(self, branch: str) -> None: ...
+
+    @abstractmethod
+    def get_commit_messages(self, branch: str) -> list[str]:
+        """Get commit messages unique to this branch (not in main)."""
+        ...
+
+    @abstractmethod
+    def merge_to_main(self, branch: str) -> str:
+        """Merge branch into main. Returns new main commit SHA."""
+        ...

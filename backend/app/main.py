@@ -21,6 +21,7 @@ from app.analysis.interface.router import router as analysis_router
 from app.rollback.interface.router import router as rollback_router
 from app.sandbox.interface.router import router as sandbox_router
 from app.audit.interface.router import router as audit_router
+from app.review.interface.router import router as review_router
 
 from app.deployment.interface import router as deploy_module
 from app.rollback.interface import router as rollback_module
@@ -67,6 +68,7 @@ app.include_router(analysis_router)
 app.include_router(rollback_router)
 app.include_router(sandbox_router)
 app.include_router(audit_router)
+app.include_router(review_router)
 
 
 @app.get("/api/health")

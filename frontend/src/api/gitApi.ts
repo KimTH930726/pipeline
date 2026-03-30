@@ -12,3 +12,9 @@ export const fetchDiff = (branch: string, path: string) =>
 
 export const analyzeImpact = (branch: string, file_paths?: string[]) =>
   client.post<ImpactAnalysisResponse>('/analysis/impact', { branch, file_paths }).then(r => r.data);
+
+export const createBranch = (new_branch: string, base_branch: string) =>
+  client.post<BranchInfo>('/git/branches', { new_branch, base_branch }).then(r => r.data);
+
+export const deleteBranch = (branch: string) =>
+  client.delete(`/git/branches/${branch}`).then(r => r.data);

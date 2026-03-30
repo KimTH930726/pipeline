@@ -1,14 +1,24 @@
 import client from './client';
-import type { DeployStatus } from '../types/deploy';
+import type { DeployStatus, DeployDetail } from '../types/deploy';
 
 export const triggerDeploy = (branch: string) =>
   client.post<DeployStatus>('/deploy/', { branch }).then(r => r.data);
 
 export const fetchDeployStatus = (id: number) =>
-  client.get<DeployStatus>(`/deploy/status/${id}`).then(r => r.data);
+  client.get<DeployDetail>(`/deploy/status/${id}`).then(r => r.data);
 
-export const fetchRecentDeploys = (branch?: string) =>
-  client.get<DeployStatus[]>('/deploy/recent', { params: branch ? { branch } : {} }).then(r => r.data);
+export interface DeployPage {
+  items: DeployStatus[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export const fetchRecentDeploys = (page = 1, size = 10, branch?: string) =>
+  client.get<DeployPage>('/deploy/recent', { params: { page, size, ...(branch ? { branch } : {}) } }).then(r => r.data);
 
 export const triggerRollback = (branch: string, target_sha?: string) =>
   client.post('/rollback/', { branch, target_sha }).then(r => r.data);
+
+export const markRolledBack = (id: number) =>
+  client.post(`/deploy/status/${id}/rolled-back`).then(r => r.data);

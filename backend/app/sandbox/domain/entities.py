@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-
-from app.shared.domain.exceptions import InvalidStateTransition
 
 
 class SandboxStatus(str, Enum):
@@ -17,15 +15,19 @@ class SandboxStatus(str, Enum):
 @dataclass
 class Sandbox:
     branch: str
-    port: int
+    backend_port: int
+    frontend_port: int
     status: SandboxStatus = SandboxStatus.CREATING
-    pid: int | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    worktree_path: str | None = None
+    project_name: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     id: int | None = None
 
-    def mark_running(self, pid: int) -> None:
+    def mark_running(self) -> None:
         self.status = SandboxStatus.RUNNING
-        self.pid = pid
+
+    def mark_stopped(self) -> None:
+        self.status = SandboxStatus.STOPPED
 
     def mark_error(self) -> None:
         self.status = SandboxStatus.ERROR

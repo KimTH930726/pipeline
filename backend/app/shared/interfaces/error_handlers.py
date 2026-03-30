@@ -8,6 +8,8 @@ from app.shared.domain.exceptions import DomainException, EntityNotFound, Invali
 _STATUS_MAP = {
     "NOT_FOUND": 404,
     "INVALID_TRANSITION": 409,
+    "CONFLICT": 409,
+    "FORBIDDEN": 403,
     "INFRASTRUCTURE_ERROR": 503,
 }
 

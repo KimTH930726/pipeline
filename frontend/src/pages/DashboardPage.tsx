@@ -1,34 +1,46 @@
 import { useState, useEffect } from 'react';
-import { Play, AlertTriangle, RotateCcw } from 'lucide-react';
+import { GitMerge, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import Header from '../components/layout/Header';
-import { fetchRecentDeploys } from '../api/deployApi';
-import { fetchAuditTimeline } from '../api/auditApi';
-import type { DeployStatus } from '../types/deploy';
-import type { AuditEntry } from '../types/audit';
+import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
+import { fetchRecentDeploys, fetchDeployStatus } from '../api/deployApi';
+import type { DeployStatus, DeployDetail } from '../types/deploy';
 
 export default function DashboardPage() {
   const [deploys, setDeploys] = useState<DeployStatus[]>([]);
-  const [audits, setAudits] = useState<AuditEntry[]>([]);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
 
   useEffect(() => {
-    fetchRecentDeploys().then(setDeploys).catch(() => {});
-    fetchAuditTimeline({ limit: 10 }).then((t) => setAudits(t.entries)).catch(() => {});
+    fetchRecentDeploys(1, 20).then((r) => setDeploys(r.items)).catch(() => {});
   }, []);
 
   const successCount = deploys.filter((d) => d.status === 'SUCCESS').length;
   const failCount = deploys.filter((d) => d.status === 'FAILED').length;
-  const rollbackCount = audits.filter((a) => a.event_type === 'ROLLBACK').length;
+  const rollbackCount = deploys.filter((d) => d.rolled_back).length;
+
+  const handleToggle = async (d: DeployStatus) => {
+    if (expandedId === d.id) {
+      setExpandedId(null);
+      setExpandedDetail(null);
+      return;
+    }
+    setExpandedId(d.id);
+    try {
+      const detail = await fetchDeployStatus(d.id);
+      setExpandedDetail(detail);
+    } catch { setExpandedDetail(null); }
+  };
 
   const cards = [
-    { label: '최근 배포', value: deploys.length, icon: Play, color: 'bg-blue-500' },
-    { label: '성공', value: successCount, icon: Play, color: 'bg-green-500' },
-    { label: '실패', value: failCount, icon: AlertTriangle, color: 'bg-red-500' },
+    { label: '총 배포', value: deploys.length, icon: GitMerge, color: 'bg-blue-500' },
+    { label: '성공', value: successCount, icon: CheckCircle, color: 'bg-green-500' },
+    { label: '실패', value: failCount, icon: XCircle, color: 'bg-red-500' },
     { label: '원복', value: rollbackCount, icon: RotateCcw, color: 'bg-orange-500' },
   ];
 
   return (
     <div>
-      <Header title="대시보드" subtitle="배포 현황 및 시스템 상태 모니터링" />
+      <Header title="대시보드" subtitle="main 브랜치 배포 현황" />
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         {cards.map((c) => {
@@ -49,44 +61,91 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="font-semibold text-gray-800 mb-3">최근 배포</h3>
-          {deploys.length === 0 ? (
-            <p className="text-sm text-gray-400">배포 이력 없음</p>
-          ) : (
-            <div className="space-y-2">
-              {deploys.slice(0, 5).map((d) => (
-                <div key={d.id} className="flex items-center justify-between text-sm">
-                  <span className="font-mono text-gray-600">{d.branch}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    d.status === 'SUCCESS' ? 'bg-green-100 text-green-700' :
-                    d.status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-600'
+      {/* main 배포 이력 */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h3 className="font-semibold text-gray-800 mb-4">main 브랜치 배포 이력</h3>
+        {deploys.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">배포 이력이 없습니다.</p>
+        ) : (
+          <div className="space-y-0">
+            {deploys.map((d) => (
+              <div key={d.id}>
+                <div
+                  className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors ${
+                    expandedId === d.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleToggle(d)}
+                >
+                  {/* 머지 아이콘 */}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    d.status === 'SUCCESS' ? 'bg-green-100' :
+                    d.status === 'FAILED' ? 'bg-red-100' : 'bg-gray-100'
                   }`}>
-                    {d.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <GitMerge size={16} className={
+                      d.status === 'SUCCESS' ? 'text-green-600' :
+                      d.status === 'FAILED' ? 'text-red-600' : 'text-gray-500'
+                    } />
+                  </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="font-semibold text-gray-800 mb-3">최근 이벤트</h3>
-          {audits.length === 0 ? (
-            <p className="text-sm text-gray-400">이벤트 없음</p>
-          ) : (
-            <div className="space-y-2">
-              {audits.slice(0, 5).map((a) => (
-                <div key={a.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{a.event_type}</span>
-                  <span className="text-xs text-gray-400 font-mono">{a.branch}</span>
+                  {/* 브랜치 → main + 커밋 메시지 */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-mono font-medium text-gray-800">{d.branch}</span>
+                      <span className="text-gray-400">&rarr;</span>
+                      <span className="font-mono text-gray-600">main</span>
+                    </div>
+                    {d.commit_messages && (
+                      <div className="mt-1 space-y-0.5">
+                        {d.commit_messages.split('\n').slice(0, 3).map((msg, i) => (
+                          <p key={i} className="text-xs text-gray-500 truncate max-w-md">
+                            <span className="text-gray-400 mr-1">&bull;</span>{msg}
+                          </p>
+                        ))}
+                        {d.commit_messages.split('\n').length > 3 && (
+                          <p className="text-xs text-gray-400">...외 {d.commit_messages.split('\n').length - 3}건</p>
+                        )}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {d.started_at ? new Date(d.started_at).toLocaleString('ko-KR') : '-'}
+                      {d.commit_sha && <span className="ml-2 font-mono">{d.commit_sha.slice(0, 8)}</span>}
+                    </div>
+                  </div>
+
+                  {/* 상태 */}
+                  <div className="flex items-center gap-2">
+                    <BuildStatusBadge status={d.status} />
+                    {d.rolled_back && (
+                      <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded text-xs">원복</span>
+                    )}
+                  </div>
+
+                  <span className="text-xs text-gray-400">{expandedId === d.id ? '접기' : '상세'}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {/* 토글 상세 */}
+                {expandedId === d.id && expandedDetail && (
+                  <div className="ml-12 mr-4 mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                    {expandedDetail.build_log && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-2">빌드 로그</p>
+                        <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto max-h-[200px] overflow-y-auto">
+                          {expandedDetail.build_log}
+                        </pre>
+                      </div>
+                    )}
+                    {expandedDetail.error_log && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium text-red-500 mb-1">에러 로그</p>
+                        <pre className="bg-red-50 text-red-700 p-2 rounded text-xs">{expandedDetail.error_log}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

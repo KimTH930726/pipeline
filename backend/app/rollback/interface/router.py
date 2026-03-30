@@ -10,7 +10,7 @@ from app.rollback.application.dtos import RollbackRequestDTO, RollbackResultDTO
 from app.rollback.application.use_cases import ExecuteRollback
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
-from app.git.infrastructure.git_python_adapter import GitPythonRepository
+from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 
@@ -36,9 +36,9 @@ def _rollback_uc(
 ) -> ExecuteRollback:
     llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if settings.LLM_MODE == "vpc" else MockLLMAdapter()
     return ExecuteRollback(
-        git_repo=GitPythonRepository(settings.REPO_PATH),
+        git_repo=get_git_repo(),
         deploy_repo=SQLAlchemyDeploymentRepository(db),
-        build_runner=BuildProcessRunner(SessionFactory, llm, bus),
+        build_runner=BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo()),
         event_bus=bus,
     )
 

@@ -10,5 +10,6 @@ class SandboxCreateDTO(BaseModel):
 class SandboxResponseDTO(BaseModel):
     id: int
     branch: str
-    port: int
+    backend_port: int
+    frontend_port: int
     status: str

@@ -5,6 +5,7 @@ import ReviewPage from './pages/ReviewPage';
 import DeployPage from './pages/DeployPage';
 import SandboxPage from './pages/SandboxPage';
 import AuditPage from './pages/AuditPage';
+import BranchPage from './pages/BranchPage';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/branches" element={<BranchPage />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/deploy" element={<DeployPage />} />
           <Route path="/sandbox" element={<SandboxPage />} />

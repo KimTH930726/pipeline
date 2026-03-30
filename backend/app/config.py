@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     SANDBOX_PORT_MAX: int = 9199
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    # === 배포 대상 설정 ===
+    # DEPLOY_TARGET_PATH: 배포 대상 프로젝트의 docker-compose.yml이 있는 경로
+    # 예: /home/deploy/SMAgentLab 또는 D:/projects/SMAgentLab
+    DEPLOY_TARGET_PATH: str = ""
+    # DEPLOY_COMPOSE_FILE: docker-compose 파일명 (기본: docker-compose.yml)
+    DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
+    # DEPLOY_SERVICE_NAME: 재빌드할 docker compose 서비스명 (비어있으면 전체 서비스)
+    DEPLOY_SERVICE_NAME: str = ""
+
     class Config:
         env_file = ".env"
 

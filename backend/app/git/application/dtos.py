@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class BranchInfoDTO(BaseModel):
@@ -19,3 +19,18 @@ class DiffResponseDTO(BaseModel):
     branch: str
     file_path: str
     diff_text: str
+
+
+class CreateBranchRequestDTO(BaseModel):
+    new_branch: str
+    base_branch: str
+
+    @field_validator("new_branch")
+    @classmethod
+    def validate_branch_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Branch name cannot be empty")
+        if ".." in v or v.startswith("/") or v.endswith("/") or v.endswith(".lock"):
+            raise ValueError(f"Invalid branch name: {v}")
+        return v

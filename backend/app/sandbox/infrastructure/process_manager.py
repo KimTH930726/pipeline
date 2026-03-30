@@ -1,44 +1,121 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import signal
+import shutil
 import logging
+from pathlib import Path
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class SandboxProcessManager:
-    """Manages sandbox subprocess lifecycle."""
+    """Manages sandbox Docker compose lifecycle using git worktree."""
 
     @staticmethod
-    async def start(port: int) -> int | None:
-        """Start a sandbox HTTP server, return PID."""
+    async def create_worktree(branch: str, sandbox_id: int) -> str:
+        """Create a git worktree for the branch. Returns worktree path."""
+        worktree_path = f"/tmp/sandbox_{sandbox_id}"
         try:
             process = await asyncio.create_subprocess_exec(
-                "python3", "-c",
-                f"""
-import http.server, socketserver
-PORT = {port}
-handler = http.server.SimpleHTTPRequestHandler
-with socketserver.TCPServer(("", PORT), handler) as httpd:
-    print(f"Sandbox running on port {{PORT}}")
-    httpd.serve_forever()
-""",
+                "git", "-C", settings.REPO_PATH,
+                "worktree", "add", worktree_path, branch,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            return process.pid
+            await process.wait()
+            return worktree_path
         except Exception:
-            logger.exception("Failed to start sandbox on port %s", port)
-            return None
+            logger.exception("Failed to create worktree for sandbox %s", sandbox_id)
+            raise
 
     @staticmethod
-    def stop(pid: int) -> None:
-        """Stop a sandbox process by PID."""
+    async def start(
+        worktree_path: str,
+        project_name: str,
+        backend_port: int,
+        frontend_port: int,
+    ) -> bool:
+        """Start backend + frontend via docker compose with custom ports."""
+        compose_file = f"{worktree_path}/docker-compose.yml"
+
+        # docker compose up with port overrides
+        # Uses environment variable override for ports
+        env_overrides = {
+            "BACKEND_PORT": str(backend_port),
+            "FRONTEND_PORT": str(frontend_port),
+        }
+        env_str = " ".join(f"{k}={v}" for k, v in env_overrides.items())
+
+        cmd = (
+            f"docker compose -f {compose_file} -p {project_name} "
+            f"up -d --build backend frontend"
+        )
+
         try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+            process = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={
+                    **dict(__import__('os').environ),
+                    **env_overrides,
+                },
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode != 0:
+                logger.error("Sandbox start failed: %s", stderr.decode())
+                return False
+            return True
         except Exception:
-            logger.exception("Failed to stop sandbox process %s", pid)
+            logger.exception("Failed to start sandbox %s", project_name)
+            return False
+
+    @staticmethod
+    async def stop(project_name: str, worktree_path: str) -> None:
+        """Stop sandbox containers."""
+        compose_file = f"{worktree_path}/docker-compose.yml"
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "docker", "compose", "-f", compose_file, "-p", project_name,
+                "stop",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await process.wait()
+        except Exception:
+            logger.exception("Failed to stop sandbox %s", project_name)
+
+    @staticmethod
+    async def destroy(project_name: str, worktree_path: str) -> None:
+        """Remove sandbox containers, volumes, and worktree."""
+        compose_file = f"{worktree_path}/docker-compose.yml"
+
+        # docker compose down
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "docker", "compose", "-f", compose_file, "-p", project_name,
+                "down", "--remove-orphans", "-v", "--rmi", "local",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await process.wait()
+        except Exception:
+            logger.exception("Failed to docker compose down for %s", project_name)
+
+        # Remove git worktree
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "git", "-C", settings.REPO_PATH,
+                "worktree", "remove", "--force", worktree_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await process.wait()
+        except Exception:
+            # Fallback: just delete the directory
+            try:
+                shutil.rmtree(worktree_path, ignore_errors=True)
+            except Exception:
+                pass

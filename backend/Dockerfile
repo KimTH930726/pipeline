@@ -1,6 +1,9 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git curl && rm -rf /var/lib/apt/lists/* \
+    && git config --global user.email "pipeline@scm-portal.local" \
+    && git config --global user.name "SCM Portal" \
+    && curl -fsSL https://get.docker.com | sh
 
 WORKDIR /app
 

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.shared.infrastructure.database import get_db
 from app.sandbox.application.dtos import SandboxCreateDTO, SandboxResponseDTO
-from app.sandbox.application.use_cases import CreateSandbox, DestroySandbox, ListSandboxes
+from app.sandbox.application.use_cases import CreateSandbox, StopSandbox, DestroySandbox, ListSandboxes
 from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRepository
 
 router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
@@ -23,6 +23,11 @@ async def create_sandbox(req: SandboxCreateDTO, repo=Depends(_repo)):
 @router.get("/", response_model=list[SandboxResponseDTO])
 async def list_sandboxes(repo=Depends(_repo)):
     return await ListSandboxes(repo).execute()
+
+
+@router.post("/{sandbox_id}/stop", response_model=SandboxResponseDTO)
+async def stop_sandbox(sandbox_id: int, repo=Depends(_repo)):
+    return await StopSandbox(repo).execute(sandbox_id)
 
 
 @router.delete("/{sandbox_id}")

@@ -15,7 +15,7 @@ from app.analysis.application.use_cases import AnalyzeImpact, AnalyzeFailure
 from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.analysis.domain.ports import LLMPort
-from app.git.infrastructure.git_python_adapter import GitPythonRepository
+from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
@@ -28,7 +28,7 @@ def _llm() -> LLMPort:
 
 
 def _impact_uc(llm: LLMPort = Depends(_llm)) -> AnalyzeImpact:
-    return AnalyzeImpact(llm, GitPythonRepository(settings.REPO_PATH))
+    return AnalyzeImpact(llm, get_git_repo())
 
 
 def _failure_uc(llm: LLMPort = Depends(_llm)) -> AnalyzeFailure:

@@ -6,18 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.shared.infrastructure.database import get_db, SessionFactory
 from app.shared.infrastructure.event_bus import InMemoryEventBus
-from app.deployment.application.dtos import DeployRequestDTO, DeployStatusDTO
-from app.deployment.application.use_cases import TriggerDeploy, GetDeployment, GetRecentDeployments
+from app.deployment.application.dtos import DeployRequestDTO, DeployStatusDTO, DeployDetailDTO, DeployPageDTO
+from app.deployment.application.use_cases import TriggerDeploy, GetDeployment, GetRecentDeployments, MarkRolledBack
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.deployment.infrastructure.websocket_manager import ws_manager
 from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
-from app.git.infrastructure.git_python_adapter import GitPythonRepository
+from app.git.infrastructure.git_python_adapter import get_git_repo
+from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
 
 router = APIRouter(prefix="/api/deploy", tags=["deploy"])
 
-# Singleton event bus (will be set from main.py lifespan)
 _event_bus: InMemoryEventBus | None = None
 
 
@@ -34,7 +34,7 @@ def _get_event_bus() -> InMemoryEventBus:
 
 def _build_runner(bus: InMemoryEventBus = Depends(_get_event_bus)) -> BuildProcessRunner:
     llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if settings.LLM_MODE == "vpc" else MockLLMAdapter()
-    return BuildProcessRunner(SessionFactory, llm, bus)
+    return BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo())
 
 
 def _trigger_uc(
@@ -43,7 +43,7 @@ def _trigger_uc(
 ) -> TriggerDeploy:
     return TriggerDeploy(
         SQLAlchemyDeploymentRepository(db),
-        GitPythonRepository(settings.REPO_PATH),
+        get_git_repo(),
         runner,
     )
 
@@ -57,11 +57,23 @@ def _recent_uc(db: AsyncSession = Depends(get_db)) -> GetRecentDeployments:
 
 
 @router.post("/", response_model=DeployStatusDTO)
-async def trigger_deploy(req: DeployRequestDTO, uc: TriggerDeploy = Depends(_trigger_uc)):
+async def trigger_deploy(
+    req: DeployRequestDTO,
+    uc: TriggerDeploy = Depends(_trigger_uc),
+    db: AsyncSession = Depends(get_db),
+):
+    review = await SQLAlchemyReviewRepository(db).find_by_branch(req.branch)
+    if not review or not review.is_approved:
+        raise HTTPException(status_code=403, detail="Branch not approved for deployment")
+
+    branches = [b.name for b in get_git_repo().list_branches()]
+    if req.branch not in branches:
+        raise HTTPException(status_code=404, detail=f"Branch '{req.branch}' not found")
+
     return await uc.execute(req.branch)
 
 
-@router.get("/status/{deployment_id}", response_model=DeployStatusDTO)
+@router.get("/status/{deployment_id}", response_model=DeployDetailDTO)
 async def get_status(deployment_id: int, uc: GetDeployment = Depends(_get_uc)):
     result = await uc.execute(deployment_id)
     if not result:
@@ -69,9 +81,21 @@ async def get_status(deployment_id: int, uc: GetDeployment = Depends(_get_uc)):
     return result
 
 
-@router.get("/recent", response_model=list[DeployStatusDTO])
-async def get_recent(branch: str | None = None, uc: GetRecentDeployments = Depends(_recent_uc)):
-    return await uc.execute(branch)
+@router.post("/status/{deployment_id}/rolled-back")
+async def mark_rolled_back(deployment_id: int, db: AsyncSession = Depends(get_db)):
+    await MarkRolledBack(SQLAlchemyDeploymentRepository(db)).execute(deployment_id)
+    return {"status": "marked"}
+
+
+@router.get("/recent", response_model=DeployPageDTO)
+async def get_recent(
+    branch: str | None = None,
+    page: int = 1,
+    size: int = 10,
+    uc: GetRecentDeployments = Depends(_recent_uc),
+):
+    items, total = await uc.execute(branch, page=page, size=size)
+    return DeployPageDTO(items=items, total=total, page=page, size=size)
 
 
 @router.websocket("/ws/{deployment_id}")

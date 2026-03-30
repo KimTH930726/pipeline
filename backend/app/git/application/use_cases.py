@@ -31,6 +31,28 @@ class GetChangedFiles:
         ]
 
 
+class CreateBranch:
+    def __init__(self, repo: GitRepositoryPort) -> None:
+        self._repo = repo
+
+    def execute(self, new_branch: str, base_branch: str) -> BranchInfoDTO:
+        branch = self._repo.create_branch(new_branch, base_branch)
+        return BranchInfoDTO(
+            name=branch.name,
+            is_active=branch.is_active,
+            last_commit_sha=branch.last_commit_sha,
+            last_commit_message=branch.last_commit_message,
+        )
+
+
+class DeleteBranch:
+    def __init__(self, repo: GitRepositoryPort) -> None:
+        self._repo = repo
+
+    def execute(self, branch: str) -> None:
+        self._repo.delete_branch(branch)
+
+
 class GetDiff:
     def __init__(self, repo: GitRepositoryPort) -> None:
         self._repo = repo

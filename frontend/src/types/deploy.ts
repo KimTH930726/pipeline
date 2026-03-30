@@ -3,8 +3,15 @@ export interface DeployStatus {
   branch: string;
   commit_sha: string | null;
   status: string;
+  rolled_back: boolean;
+  commit_messages: string | null;
   started_at: string | null;
   finished_at: string | null;
+}
+
+export interface DeployDetail extends DeployStatus {
+  build_log: string | null;
+  error_log: string | null;
 }
 
 export interface BuildLogMessage {

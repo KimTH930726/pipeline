@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, GitBranch, Play, Box, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList } from 'lucide-react';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
-  { to: '/review', icon: GitBranch, label: '코드 리뷰' },
+  { to: '/branches', icon: GitBranch, label: '브랜치 관리' },
+  { to: '/review', icon: GitPullRequest, label: '코드 리뷰' },
   { to: '/deploy', icon: Play, label: '배포' },
   { to: '/sandbox', icon: Box, label: '샌드박스' },
   { to: '/audit', icon: ClipboardList, label: '감사 로그' },

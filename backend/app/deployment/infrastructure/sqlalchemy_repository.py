@@ -19,6 +19,7 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
             status=deployment.status.value,
             build_log=deployment.build_log,
             error_log=deployment.error_log,
+            commit_messages=deployment.commit_messages,
             started_at=deployment.started_at,
             finished_at=deployment.finished_at,
         )
@@ -38,6 +39,8 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
         orm.status = deployment.status.value
         orm.build_log = deployment.build_log
         orm.error_log = deployment.error_log
+        orm.commit_messages = deployment.commit_messages
+        orm.rolled_back = 1 if deployment.rolled_back else 0
         orm.finished_at = deployment.finished_at
         await self._db.commit()
 
@@ -48,8 +51,16 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
         orm = result.scalar_one_or_none()
         return self._to_entity(orm) if orm else None
 
-    async def find_recent(self, branch: str | None = None, limit: int = 20) -> list[Deployment]:
-        query = select(DeploymentORM).order_by(DeploymentORM.started_at.desc()).limit(limit)
+    async def count(self, branch: str | None = None) -> int:
+        from sqlalchemy import func
+        query = select(func.count(DeploymentORM.id))
+        if branch:
+            query = query.where(DeploymentORM.branch == branch)
+        result = await self._db.execute(query)
+        return result.scalar() or 0
+
+    async def find_recent(self, branch: str | None = None, limit: int = 10, offset: int = 0) -> list[Deployment]:
+        query = select(DeploymentORM).order_by(DeploymentORM.started_at.desc()).limit(limit).offset(offset)
         if branch:
             query = query.where(DeploymentORM.branch == branch)
         result = await self._db.execute(query)
@@ -74,6 +85,8 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
             status=DeploymentStatus(orm.status),
             build_log=orm.build_log,
             error_log=orm.error_log,
+            commit_messages=orm.commit_messages,
+            rolled_back=bool(orm.rolled_back),
             started_at=orm.started_at,
             finished_at=orm.finished_at,
         )
