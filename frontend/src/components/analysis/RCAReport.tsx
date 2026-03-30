@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Markdown from 'react-markdown';
 import { AlertTriangle, FileCode, Wrench, Copy, Check, Bot } from 'lucide-react';
 import type { RCAReport as RCAReportType } from '../../types/deploy';
 
@@ -30,7 +31,9 @@ export default function RCAReport({ report }: Props) {
         <h4 className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
           <AlertTriangle size={12} /> 원인 (Root Cause)
         </h4>
-        <p className="text-sm text-gray-800">{report.root_cause}</p>
+        <div className="text-sm text-gray-800 prose prose-sm max-w-none">
+          <Markdown>{report.root_cause}</Markdown>
+        </div>
       </div>
 
       {report.affected_files.length > 0 && (
@@ -52,7 +55,9 @@ export default function RCAReport({ report }: Props) {
         <h4 className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
           <Wrench size={12} /> 수정 가이드
         </h4>
-        <p className="text-sm text-gray-800">{report.suggested_fix}</p>
+        <div className="text-sm text-gray-800 prose prose-sm max-w-none">
+          <Markdown>{report.suggested_fix}</Markdown>
+        </div>
       </div>
 
       {report.ai_fix_prompt && (
@@ -68,7 +73,9 @@ export default function RCAReport({ report }: Props) {
               {copied ? <><Check size={10} className="text-green-600" /> 복사됨</> : <><Copy size={10} /> 복사</>}
             </button>
           </div>
-          <pre className="text-xs text-gray-700 bg-white border border-red-200 rounded p-3 whitespace-pre-wrap">{report.ai_fix_prompt}</pre>
+          <div className="text-xs text-gray-700 bg-white border border-red-200 rounded p-3 prose prose-xs max-w-none">
+            <Markdown>{report.ai_fix_prompt}</Markdown>
+          </div>
         </div>
       )}
 

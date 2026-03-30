@@ -52,12 +52,13 @@ class VPCLLMAdapter(LLMPort):
 - **recommendations**: 배포 전 반드시 확인해야 할 사항 (구체적인 테스트 케이스, 확인 포인트)
 
 ## 응답 형식 (JSON만 출력)
+- summary, recommendations 항목은 **Markdown 형식**으로 작성하세요 (볼드, 리스트, 코드블록 등 활용)
 ```json
 {{
   "risk_level": "LOW|MEDIUM|HIGH|CRITICAL",
-  "summary": "변경 내용과 영향을 2-3문장으로 요약",
+  "summary": "## 변경 요약\\n변경 내용을 **마크다운**으로 구조화하여 작성",
   "affected_services": ["영향받는 서비스/레이어"],
-  "recommendations": ["구체적인 확인 사항 또는 테스트 권장 항목"]
+  "recommendations": ["**확인 필요**: 구체적인 내용을 마크다운으로 작성"]
 }}
 ```"""
 
@@ -95,13 +96,14 @@ class VPCLLMAdapter(LLMPort):
    - 수정 시 주의사항
 
 ## 응답 형식 (JSON만 출력)
+- root_cause, suggested_fix, ai_fix_prompt 항목은 **Markdown 형식**으로 작성하세요 (볼드, 리스트, 코드블록 등 활용)
 ```json
 {{
-  "root_cause": "실패 원인",
+  "root_cause": "## 실패 원인\\n원인을 **마크다운**으로 구조화",
   "affected_files": ["파일 경로"],
-  "suggested_fix": "단계별 수정 가이드",
+  "suggested_fix": "## 수정 가이드\\n1. 첫 번째 단계\\n2. 두 번째 단계\\n```python\\n코드 예시\\n```",
   "confidence_score": 0.0,
-  "ai_fix_prompt": "AI 어시스턴트에 전달할 수정 프롬프트"
+  "ai_fix_prompt": "마크다운 형식의 AI 수정 요청 프롬프트"
 }}
 ```"""
 

@@ -1,3 +1,4 @@
+import Markdown from 'react-markdown';
 import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
 import type { ImpactAnalysisResponse } from '../../types/git';
 
@@ -36,7 +37,9 @@ export default function ImpactAnalysisPanel({ analysis, loading }: Props) {
         <Icon size={20} />
         <span className="font-semibold">영향도: {config.label}</span>
       </div>
-      <p className="text-sm mb-3">{analysis.summary}</p>
+      <div className="text-sm mb-3 prose prose-sm max-w-none">
+        <Markdown>{analysis.summary}</Markdown>
+      </div>
       <div className="mb-3">
         <h4 className="text-xs font-semibold mb-1 opacity-70">영향 서비스</h4>
         <div className="flex flex-wrap gap-1">
@@ -47,11 +50,11 @@ export default function ImpactAnalysisPanel({ analysis, loading }: Props) {
       </div>
       <div>
         <h4 className="text-xs font-semibold mb-1 opacity-70">권장사항</h4>
-        <ul className="text-xs space-y-1">
+        <div className="text-xs space-y-1 prose prose-xs max-w-none">
           {analysis.recommendations.map((r, i) => (
-            <li key={i}>- {r}</li>
+            <Markdown key={i}>{r}</Markdown>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );
