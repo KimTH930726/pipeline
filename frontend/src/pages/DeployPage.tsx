@@ -5,10 +5,12 @@ import BuildLogStream from '../components/deploy/BuildLogStream';
 import ChangedFileList from '../components/git/ChangedFileList';
 import DiffViewer from '../components/git/DiffViewer';
 import RCAReportComponent from '../components/analysis/RCAReport';
-import { triggerDeploy, fetchRecentDeploys, fetchDeployStatus, triggerRollback, markRolledBack } from '../api/deployApi';
-import type { DeployPage as DeployPageType } from '../api/deployApi';
+import { triggerDeploy, fetchRecentDeploys, fetchDeployStatus, triggerRollback, markRolledBack, compareDeploys } from '../api/deployApi';
+import type { DeployPage as DeployPageType, DeployCompare } from '../api/deployApi';
 import { listApprovedReviews, type ReviewResponse } from '../api/reviewApi';
-import { fetchChangedFiles, fetchDiff } from '../api/gitApi';
+import Markdown from 'react-markdown';
+import { fetchChangedFiles, fetchDiff, checkConflicts, applyResolution } from '../api/gitApi';
+import type { MergeConflictResponse } from '../api/gitApi';
 import { useBuildStatus } from '../hooks/useBuildStatus';
 import { useDeployStore } from '../store/deployStore';
 import type { DeployStatus, DeployDetail } from '../types/deploy';
@@ -24,6 +26,11 @@ export default function DeployPage() {
   const [diffText, setDiffText] = useState('');
   const [loadingFiles, setLoadingFiles] = useState(false);
 
+  // 충돌
+  const [conflictResult, setConflictResult] = useState<MergeConflictResponse | null>(null);
+  const [checkingConflicts, setCheckingConflicts] = useState(false);
+  const [applyingResolution, setApplyingResolution] = useState(false);
+
   // 페이징
   const [deployPage, setDeployPage] = useState<DeployPageType>({ items: [], total: 0, page: 1, size: 10 });
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +41,12 @@ export default function DeployPage() {
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
+
+  // 배포 비교
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareSelections, setCompareSelections] = useState<number[]>([]);
+  const [compareResult, setCompareResult] = useState<DeployCompare | null>(null);
+  const [comparing, setComparing] = useState(false);
 
   const { currentDeployment, buildLog, rcaReport, buildStatus, setDeployment } = useDeployStore();
   useBuildStatus(currentDeployment?.id ?? null);
@@ -76,11 +89,45 @@ export default function DeployPage() {
 
   const handleDeploy = async () => {
     if (!selectedBranch) return;
+    // 먼저 충돌 체크
+    setCheckingConflicts(true);
+    setConflictResult(null);
+    try {
+      const result = await checkConflicts(selectedBranch);
+      if (result.has_conflicts) {
+        setConflictResult(result);
+        setCheckingConflicts(false);
+        return; // 충돌 해결 UI로 전환
+      }
+    } catch { /* 충돌 체크 실패 시 배포 진행 */ }
+    setCheckingConflicts(false);
+
+    // 충돌 없으면 바로 배포
     try {
       const deployment = await triggerDeploy(selectedBranch);
       setDeployment(deployment);
     } catch (err) {
       console.error('Deploy failed:', err);
+    }
+  };
+
+  const handleApplyResolution = async () => {
+    if (!selectedBranch || !conflictResult) return;
+    setApplyingResolution(true);
+    try {
+      const resolutions: Record<string, string> = {};
+      for (const r of conflictResult.resolutions) {
+        resolutions[r.file_path] = r.resolved_content;
+      }
+      await applyResolution(selectedBranch, resolutions);
+      setConflictResult(null);
+      // 충돌 해결 후 배포
+      const deployment = await triggerDeploy(selectedBranch);
+      setDeployment(deployment);
+    } catch (err) {
+      console.error('Resolution failed:', err);
+    } finally {
+      setApplyingResolution(false);
     }
   };
 
@@ -114,6 +161,25 @@ export default function DeployPage() {
     } finally {
       setRollingBack(false);
     }
+  };
+
+  const handleToggleCompare = (id: number) => {
+    setCompareSelections((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
+    });
+  };
+
+  const handleCompare = async () => {
+    if (compareSelections.length !== 2) return;
+    setComparing(true);
+    try {
+      const [a, b] = compareSelections.sort((x, y) => x - y);
+      const result = await compareDeploys(a, b);
+      setCompareResult(result);
+    } catch { setCompareResult(null); }
+    finally { setComparing(false); }
   };
 
   const handlePageChange = (page: number) => {
@@ -152,10 +218,10 @@ export default function DeployPage() {
             </select>
             <button
               onClick={handleDeploy}
-              disabled={!selectedBranch || buildStatus === 'BUILDING'}
+              disabled={!selectedBranch || buildStatus === 'BUILDING' || checkingConflicts}
               className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {buildStatus === 'BUILDING' ? '빌드 중...' : '배포 실행'}
+              {checkingConflicts ? '충돌 확인 중...' : buildStatus === 'BUILDING' ? '빌드 중...' : '배포 실행'}
             </button>
             {buildStatus && <BuildStatusBadge status={buildStatus} />}
           </div>
@@ -188,6 +254,60 @@ export default function DeployPage() {
         </div>
       )}
 
+      {/* 머지 충돌 해결 UI */}
+      {conflictResult && conflictResult.has_conflicts && (
+        <div className="bg-white border border-orange-300 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-orange-500 text-lg">&#9888;</span>
+            <h3 className="font-semibold text-orange-700">머지 충돌 감지</h3>
+            <span className="text-xs text-gray-500">{conflictResult.conflicting_files.length}개 파일</span>
+          </div>
+          <div className="text-sm text-gray-700 mb-4 prose prose-sm max-w-none">
+            <Markdown>{conflictResult.summary}</Markdown>
+          </div>
+
+          <div className="space-y-4 mb-4">
+            {conflictResult.resolutions.map((r, i) => (
+              <div key={i} className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-3 py-2 text-sm font-mono font-medium text-gray-700 border-b">
+                  {r.file_path}
+                </div>
+                <div className="grid grid-cols-2 gap-0">
+                  <div>
+                    <div className="px-3 py-1 bg-red-50 text-xs font-medium text-red-600 border-b">충돌 원본</div>
+                    <pre className="p-3 text-xs overflow-auto max-h-[300px] bg-red-50/30">{r.original_content}</pre>
+                  </div>
+                  <div>
+                    <div className="px-3 py-1 bg-green-50 text-xs font-medium text-green-600 border-b">AI 해결안</div>
+                    <pre className="p-3 text-xs overflow-auto max-h-[300px] bg-green-50/30">{r.resolved_content}</pre>
+                  </div>
+                </div>
+                <div className="px-3 py-2 bg-blue-50 border-t text-sm prose prose-sm max-w-none">
+                  <Markdown>{r.explanation}</Markdown>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 pt-3 border-t">
+            <button
+              onClick={handleApplyResolution}
+              disabled={applyingResolution}
+              className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+            >
+              {applyingResolution ? '적용 중...' : 'AI 해결안 승인 및 머지'}
+            </button>
+            <button
+              onClick={() => setConflictResult(null)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            >
+              취소
+            </button>
+            <span className="text-xs text-gray-500">AI 해결안을 확인한 후 승인하면 main에 머지됩니다</span>
+          </div>
+        </div>
+      )}
+
       {/* 실시간 빌드 로그 */}
       {currentDeployment && buildLog.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
@@ -210,6 +330,24 @@ export default function DeployPage() {
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800">배포 이력 ({deployPage.total}건)</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setCompareMode(!compareMode); setCompareSelections([]); setCompareResult(null); }}
+              className={`px-3 py-1 text-xs rounded border ${compareMode ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}
+            >
+              {compareMode ? '비교 모드 종료' : '배포 비교'}
+            </button>
+            {compareMode && compareSelections.length === 2 && (
+              <button
+                onClick={handleCompare}
+                disabled={comparing}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {comparing ? '비교 중...' : '비교 실행'}
+              </button>
+            )}
+            {compareMode && <span className="text-xs text-gray-400">{compareSelections.length}/2 선택</span>}
+          </div>
         </div>
         {deployPage.items.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-4">배포 이력이 없습니다.</p>
@@ -217,6 +355,7 @@ export default function DeployPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
+                {compareMode && <th className="pb-2 w-8"></th>}
                 <th className="pb-2">ID</th>
                 <th className="pb-2">브랜치</th>
                 <th className="pb-2">상태</th>
@@ -235,7 +374,17 @@ export default function DeployPage() {
                     }`}
                     onClick={() => handleToggleDetail(d)}
                   >
-                    <td className="py-2 font-mono">{d.id}</td>
+                    {compareMode && (
+                    <td className="py-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={compareSelections.includes(d.id)}
+                        onChange={() => handleToggleCompare(d.id)}
+                        className="rounded"
+                      />
+                    </td>
+                  )}
+                  <td className="py-2 font-mono">{d.id}</td>
                     <td className="py-2 font-mono">{d.branch}</td>
                     <td className="py-2">
                       <div className="flex items-center gap-1">
@@ -256,7 +405,7 @@ export default function DeployPage() {
                   {/* 토글 상세 */}
                   {expandedId === d.id && (
                     <tr key={`detail-${d.id}`}>
-                      <td colSpan={6} className="p-4 bg-gray-50 border-b">
+                      <td colSpan={compareMode ? 7 : 6} className="p-4 bg-gray-50 border-b">
                         {loadingDetail ? (
                           <p className="text-sm text-gray-500">로딩 중...</p>
                         ) : expandedDetail ? (
@@ -295,6 +444,28 @@ export default function DeployPage() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* 배포 비교 결과 */}
+        {compareResult && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-gray-800">
+                배포 비교: #{compareResult.from.id} vs #{compareResult.to.id}
+              </h4>
+              <button onClick={() => setCompareResult(null)} className="text-xs text-gray-400 hover:text-gray-600">닫기</button>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+              <span className="font-mono bg-red-50 px-2 py-1 rounded">#{compareResult.from.id} {compareResult.from.branch} ({compareResult.from.commit_sha.slice(0,8)})</span>
+              <span>&rarr;</span>
+              <span className="font-mono bg-green-50 px-2 py-1 rounded">#{compareResult.to.id} {compareResult.to.branch} ({compareResult.to.commit_sha.slice(0,8)})</span>
+            </div>
+            {compareResult.diff_text ? (
+              <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-[400px]">{compareResult.diff_text}</pre>
+            ) : (
+              <p className="text-sm text-gray-500">두 배포 간 차이가 없습니다.</p>
+            )}
+          </div>
         )}
 
         {/* 페이징 */}

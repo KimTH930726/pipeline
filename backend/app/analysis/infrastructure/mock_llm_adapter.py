@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import re
 
-from app.analysis.domain.entities import ImpactReport, RCAReport, RiskLevel
+from app.analysis.domain.entities import (
+    ImpactReport, RCAReport, RiskLevel,
+    CodeReviewReport, CodeReviewComment,
+    MergeConflictReport, ConflictResolution,
+)
 from app.analysis.domain.ports import LLMPort
 
 
@@ -33,6 +37,82 @@ class MockLLMAdapter(LLMPort):
                 "의존성 그래프 확인 필요" if count > 5 else "영향 범위 제한적",
                 "스테이징 환경 테스트 후 배포 권장" if risk != RiskLevel.LOW else "샌드박스 테스트 후 배포 가능",
             ],
+        )
+
+    async def review_code(self, diff_text: str, file_list: list[str]) -> CodeReviewReport:
+        comments: list[CodeReviewComment] = []
+
+        for f in file_list:
+            # 파일 확장자/경로 기반 mock 리뷰
+            if f.endswith(".py"):
+                if "password" in diff_text.lower() or "secret" in diff_text.lower():
+                    comments.append(CodeReviewComment(
+                        file_path=f, line=None, severity="critical", category="security",
+                        message="하드코딩된 비밀번호 또는 시크릿이 감지되었습니다. 환경변수로 분리하세요.",
+                        suggested_code="password = os.environ.get('PASSWORD')",
+                    ))
+                if "except:" in diff_text or "except Exception:" in diff_text:
+                    comments.append(CodeReviewComment(
+                        file_path=f, line=None, severity="warning", category="bug",
+                        message="너무 넓은 예외 처리가 감지되었습니다. 구체적인 예외 타입을 지정하세요.",
+                        suggested_code="except ValueError as e:\n    logger.error(e)",
+                    ))
+                if "TODO" in diff_text or "FIXME" in diff_text:
+                    comments.append(CodeReviewComment(
+                        file_path=f, line=None, severity="info", category="style",
+                        message="TODO/FIXME 주석이 발견되었습니다. 배포 전 해결이 필요한지 확인하세요.",
+                    ))
+                if "print(" in diff_text:
+                    comments.append(CodeReviewComment(
+                        file_path=f, line=None, severity="warning", category="style",
+                        message="print() 문이 발견되었습니다. 운영 코드에서는 logger를 사용하세요.",
+                        suggested_code="import logging\nlogger = logging.getLogger(__name__)\nlogger.info(...)",
+                    ))
+            if "test" not in f.lower() and len(file_list) > 3:
+                if not any("test" in t.lower() for t in file_list):
+                    comments.append(CodeReviewComment(
+                        file_path=f, line=None, severity="info", category="suggestion",
+                        message="변경된 코드에 대한 테스트 파일이 없습니다. 단위 테스트 추가를 권장합니다.",
+                    ))
+                    break
+
+        if not comments:
+            comments.append(CodeReviewComment(
+                file_path=file_list[0] if file_list else "",
+                line=None, severity="info", category="suggestion",
+                message="특별한 이슈가 감지되지 않았습니다. 코드가 깔끔합니다.",
+            ))
+
+        quality = "good" if all(c.severity == "info" for c in comments) else \
+                  "poor" if any(c.severity == "critical" for c in comments) else "needs_improvement"
+
+        return CodeReviewReport(
+            summary=f"{len(file_list)}개 파일에 대해 {len(comments)}건의 리뷰 코멘트가 생성되었습니다.",
+            comments=comments,
+            overall_quality=quality,
+        )
+
+    async def resolve_conflicts(self, conflicts: dict[str, str]) -> MergeConflictReport:
+        resolutions = []
+        for file_path, content in conflicts.items():
+            # 충돌 마커 제거 — 양쪽 코드를 모두 포함하는 방식 (mock)
+            resolved = re.sub(
+                r'<<<<<<<.*?\n(.*?)=======\n(.*?)>>>>>>>.*?\n',
+                r'\1\2',
+                content,
+                flags=re.DOTALL,
+            )
+            resolutions.append(ConflictResolution(
+                file_path=file_path,
+                original_content=content,
+                resolved_content=resolved,
+                explanation=f"`{file_path}`: 양쪽 변경사항을 모두 포함하도록 병합했습니다. 순서와 로직을 확인해주세요.",
+            ))
+
+        return MergeConflictReport(
+            conflicting_files=list(conflicts.keys()),
+            resolutions=resolutions,
+            summary=f"{len(conflicts)}개 파일에서 충돌이 감지되었습니다. AI가 자동으로 해결안을 생성했습니다.",
         )
 
     async def analyze_failure(self, build_log: str) -> RCAReport:

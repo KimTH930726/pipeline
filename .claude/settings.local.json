@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill //PID 20700 //F)",
+      "Bash(docker compose:*)"
+    ]
+  }
+}

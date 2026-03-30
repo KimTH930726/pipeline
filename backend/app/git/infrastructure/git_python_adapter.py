@@ -83,6 +83,103 @@ class GitPythonRepository(GitRepositoryPort):
     def get_full_diff(self, branch: str) -> str:
         return self._repo.git.diff("main", branch)
 
+    def check_merge_conflicts(self, branch: str) -> dict[str, str]:
+        """Dry-run merge to detect conflicts. Returns {file: conflict_content} or empty if no conflicts."""
+        import os
+        with self._lock:
+            original = (
+                self._repo.active_branch.name
+                if not self._repo.head.is_detached
+                else None
+            )
+            stashed = False
+            try:
+                self._repo.git.stash("push", "-m", "auto-stash before conflict check")
+                stashed = True
+            except Exception:
+                pass
+
+            try:
+                self._repo.git.checkout("main")
+                try:
+                    self._repo.git.merge("--no-commit", "--no-ff", branch)
+                    # No conflict
+                    self._repo.git.merge("--abort")
+                    return {}
+                except Exception:
+                    # Conflict detected - read conflicting files
+                    conflicts = {}
+                    status = self._repo.git.status("--porcelain")
+                    for line in status.split("\n"):
+                        if line.startswith("UU ") or line.startswith("AA "):
+                            file_path = line[3:].strip()
+                            full_path = os.path.join(self._repo.working_dir, file_path)
+                            try:
+                                with open(full_path, "r", encoding="utf-8", errors="replace") as f:
+                                    conflicts[file_path] = f.read()
+                            except Exception:
+                                conflicts[file_path] = ""
+                    try:
+                        self._repo.git.merge("--abort")
+                    except Exception:
+                        pass
+                    return conflicts
+            finally:
+                if original and original != "main":
+                    self._repo.git.checkout(original)
+                if stashed:
+                    try:
+                        self._repo.git.stash("pop")
+                    except Exception:
+                        logger.warning("Failed to pop stash after conflict check")
+
+    def apply_conflict_resolution(self, branch: str, resolutions: dict[str, str]) -> str:
+        """Apply resolved files and complete merge."""
+        import os
+        with self._lock:
+            original = (
+                self._repo.active_branch.name
+                if not self._repo.head.is_detached
+                else None
+            )
+            stashed = False
+            try:
+                self._repo.git.stash("push", "-m", "auto-stash before resolution")
+                stashed = True
+            except Exception:
+                pass
+
+            try:
+                self._repo.git.checkout("main")
+                try:
+                    self._repo.git.merge("--no-commit", "--no-ff", branch)
+                except Exception:
+                    pass  # Expected conflict
+
+                # Write resolved files
+                for file_path, content in resolutions.items():
+                    full_path = os.path.join(self._repo.working_dir, file_path)
+                    with open(full_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    self._repo.git.add(file_path)
+
+                self._repo.git.commit("-m", f"Merge branch '{branch}' into main (AI conflict resolution)")
+                return self._repo.head.commit.hexsha
+            finally:
+                if original and original != "main":
+                    self._repo.git.checkout(original)
+                if stashed:
+                    try:
+                        self._repo.git.stash("pop")
+                    except Exception:
+                        logger.warning("Failed to pop stash after resolution")
+
+    def get_diff_between(self, sha_from: str, sha_to: str) -> str:
+        try:
+            return self._repo.git.diff(sha_from, sha_to)
+        except Exception:
+            return ""
+
     def get_commit_messages(self, branch: str) -> list[str]:
         try:
             output = self._repo.git.log("--oneline", f"main..{branch}")

@@ -98,6 +98,25 @@ async def get_recent(
     return DeployPageDTO(items=items, total=total, page=page, size=size)
 
 
+@router.get("/compare/{id_from}/{id_to}")
+async def compare_deploys(id_from: int, id_to: int, db: AsyncSession = Depends(get_db)):
+    repo = SQLAlchemyDeploymentRepository(db)
+    dep_from = await repo.find_by_id(id_from)
+    dep_to = await repo.find_by_id(id_to)
+    if not dep_from or not dep_to:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    if not dep_from.commit_sha or not dep_to.commit_sha:
+        raise HTTPException(status_code=400, detail="Commit SHA not available")
+
+    git_repo = get_git_repo()
+    diff_text = git_repo.get_diff_between(dep_from.commit_sha, dep_to.commit_sha)
+    return {
+        "from": {"id": dep_from.id, "branch": dep_from.branch, "commit_sha": dep_from.commit_sha},
+        "to": {"id": dep_to.id, "branch": dep_to.branch, "commit_sha": dep_to.commit_sha},
+        "diff_text": diff_text,
+    }
+
+
 @router.websocket("/ws/{deployment_id}")
 async def build_websocket(websocket: WebSocket, deployment_id: str):
     await ws_manager.connect(deployment_id, websocket)

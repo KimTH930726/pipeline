@@ -33,6 +33,21 @@ class GitRepositoryPort(ABC):
     def delete_branch(self, branch: str) -> None: ...
 
     @abstractmethod
+    def check_merge_conflicts(self, branch: str) -> dict[str, str]:
+        """Dry-run merge to detect conflicts. Returns {file_path: conflict_content}."""
+        ...
+
+    @abstractmethod
+    def apply_conflict_resolution(self, branch: str, resolutions: dict[str, str]) -> str:
+        """Apply resolved files and complete merge. Returns new commit SHA."""
+        ...
+
+    @abstractmethod
+    def get_diff_between(self, sha_from: str, sha_to: str) -> str:
+        """Get diff between two commit SHAs."""
+        ...
+
+    @abstractmethod
     def get_commit_messages(self, branch: str) -> list[str]:
         """Get commit messages unique to this branch (not in main)."""
         ...

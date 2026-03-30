@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.analysis.domain.ports import LLMPort
-from app.analysis.application.dtos import ImpactAnalysisResponseDTO, RCAResponseDTO
+from app.analysis.application.dtos import ImpactAnalysisResponseDTO, CodeReviewResponseDTO, CodeReviewCommentDTO, RCAResponseDTO
 from app.git.domain.repositories import GitRepositoryPort
 
 
@@ -24,6 +24,33 @@ class AnalyzeImpact:
             summary=report.summary,
             affected_services=report.affected_services,
             recommendations=report.recommendations,
+        )
+
+
+class ReviewCode:
+    def __init__(self, llm: LLMPort, git_repo: GitRepositoryPort) -> None:
+        self._llm = llm
+        self._git = git_repo
+
+    async def execute(
+        self, branch: str, file_paths: list[str] | None = None
+    ) -> CodeReviewResponseDTO:
+        diff_text = self._git.get_full_diff(branch)
+        if not file_paths:
+            changes = self._git.get_changed_files(branch)
+            file_paths = [c.path for c in changes]
+
+        report = await self._llm.review_code(diff_text, file_paths)
+        return CodeReviewResponseDTO(
+            summary=report.summary,
+            comments=[
+                CodeReviewCommentDTO(
+                    file_path=c.file_path, line=c.line, severity=c.severity,
+                    category=c.category, message=c.message, suggested_code=c.suggested_code,
+                )
+                for c in report.comments
+            ],
+            overall_quality=report.overall_quality,
         )
 
 

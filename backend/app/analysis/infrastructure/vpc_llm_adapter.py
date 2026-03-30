@@ -5,7 +5,11 @@ import logging
 
 import httpx
 
-from app.analysis.domain.entities import ImpactReport, RCAReport, RiskLevel
+from app.analysis.domain.entities import (
+    ImpactReport, RCAReport, RiskLevel,
+    CodeReviewReport, CodeReviewComment,
+    MergeConflictReport, ConflictResolution,
+)
 from app.analysis.domain.ports import LLMPort
 from app.analysis.domain.exceptions import LLMConnectionError
 from app.analysis.infrastructure.log_parser import extract_error_context
@@ -63,6 +67,118 @@ class VPCLLMAdapter(LLMPort):
 ```"""
 
         data = json.loads(await self._call(prompt))
+        return self._parse_impact(data)
+
+    async def review_code(self, diff_text: str, file_list: list[str]) -> CodeReviewReport:
+        trimmed_diff = self._trim_diff(diff_text, max_chars=10000)
+        file_summary = json.dumps(file_list, ensure_ascii=False)
+
+        prompt = f"""## 작업
+아래 코드 변경사항에 대해 시니어 개발자 관점에서 코드 리뷰를 수행해주세요.
+
+## 변경 파일 ({len(file_list)}개)
+{file_summary}
+
+## Diff (main 브랜치 대비)
+```diff
+{trimmed_diff}
+```
+
+## 리뷰 기준
+각 변경사항에 대해 다음 관점으로 리뷰해주세요:
+- **bug**: 로직 오류, NPE 가능성, 경계값 미처리, 비동기 처리 누락
+- **security**: SQL Injection, XSS, 하드코딩된 시크릿, 인증/인가 누락
+- **performance**: N+1 쿼리, 불필요한 반복, 메모리 누수 가능성
+- **style**: 네이밍 컨벤션, 불필요한 코드, 가독성
+- **suggestion**: 더 나은 구현 방법, 리팩터링 제안
+
+## severity 기준
+- **critical**: 반드시 수정 필요 (버그, 보안 취약점)
+- **warning**: 수정 권장 (잠재적 문제)
+- **info**: 참고 사항 (개선 제안)
+
+## 응답 형식 (JSON만 출력, 내용은 마크다운으로)
+```json
+{{
+  "summary": "전체 리뷰 요약을 **마크다운**으로 작성",
+  "comments": [
+    {{
+      "file_path": "파일 경로",
+      "line": null,
+      "severity": "critical|warning|info",
+      "category": "bug|security|performance|style|suggestion",
+      "message": "리뷰 내용을 **마크다운**으로 작성",
+      "suggested_code": "수정 제안 코드 (없으면 빈 문자열)"
+    }}
+  ],
+  "overall_quality": "good|needs_improvement|poor"
+}}
+```"""
+
+        data = json.loads(await self._call(prompt))
+        return CodeReviewReport(
+            summary=data["summary"],
+            comments=[
+                CodeReviewComment(
+                    file_path=c["file_path"], line=c.get("line"),
+                    severity=c["severity"], category=c["category"],
+                    message=c["message"], suggested_code=c.get("suggested_code", ""),
+                )
+                for c in data.get("comments", [])
+            ],
+            overall_quality=data.get("overall_quality", "needs_improvement"),
+        )
+
+    async def resolve_conflicts(self, conflicts: dict[str, str]) -> MergeConflictReport:
+        conflict_details = "\n\n".join(
+            f"### {fp}\n```\n{content[:3000]}\n```"
+            for fp, content in conflicts.items()
+        )
+
+        prompt = f"""## 작업
+Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 해결해주세요.
+
+## 충돌 파일 ({len(conflicts)}개)
+{conflict_details}
+
+## 규칙
+- `<<<<<<<`, `=======`, `>>>>>>>` 마커를 모두 제거하고 올바른 코드를 작성하세요
+- 양쪽 변경사항의 **의도를 모두 보존**하세요
+- 코드가 문법적으로 유효해야 합니다
+- explanation은 **마크다운**으로 작성하세요
+
+## 응답 형식 (JSON만 출력)
+```json
+{{
+  "conflicting_files": ["파일 경로"],
+  "resolutions": [
+    {{
+      "file_path": "파일 경로",
+      "resolved_content": "충돌이 해결된 전체 파일 내용",
+      "explanation": "해결 방법 설명 (마크다운)"
+    }}
+  ],
+  "summary": "전체 해결 요약 (마크다운)"
+}}
+```"""
+
+        data = json.loads(await self._call(prompt))
+        return MergeConflictReport(
+            conflicting_files=data["conflicting_files"],
+            resolutions=[
+                ConflictResolution(
+                    file_path=r["file_path"],
+                    original_content=conflicts.get(r["file_path"], ""),
+                    resolved_content=r["resolved_content"],
+                    explanation=r["explanation"],
+                )
+                for r in data.get("resolutions", [])
+            ],
+            summary=data["summary"],
+        )
+
+    @staticmethod
+    def _parse_impact(data: dict) -> ImpactReport:
         return ImpactReport(
             risk_level=RiskLevel(data["risk_level"]),
             summary=data["summary"],

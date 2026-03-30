@@ -20,6 +20,38 @@ class ImpactReport:
 
 
 @dataclass(frozen=True)
+class CodeReviewComment:
+    file_path: str
+    line: int | None
+    severity: str  # "critical" | "warning" | "info"
+    category: str  # "bug" | "security" | "performance" | "style" | "suggestion"
+    message: str
+    suggested_code: str = ""
+
+
+@dataclass(frozen=True)
+class CodeReviewReport:
+    summary: str
+    comments: list[CodeReviewComment]
+    overall_quality: str  # "good" | "needs_improvement" | "poor"
+
+
+@dataclass(frozen=True)
+class ConflictResolution:
+    file_path: str
+    original_content: str
+    resolved_content: str
+    explanation: str
+
+
+@dataclass(frozen=True)
+class MergeConflictReport:
+    conflicting_files: list[str]
+    resolutions: list[ConflictResolution]
+    summary: str
+
+
+@dataclass(frozen=True)
 class RCAReport:
     root_cause: str
     affected_files: list[str]

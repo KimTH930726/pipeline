@@ -8,10 +8,14 @@ from app.shared.infrastructure.database import get_db
 from app.analysis.application.dtos import (
     ImpactAnalysisRequestDTO,
     ImpactAnalysisResponseDTO,
+    CodeReviewResponseDTO,
+    MergeConflictResponseDTO,
+    ConflictResolutionDTO,
+    ApplyResolutionRequestDTO,
     RCARequestDTO,
     RCAResponseDTO,
 )
-from app.analysis.application.use_cases import AnalyzeImpact, AnalyzeFailure
+from app.analysis.application.use_cases import AnalyzeImpact, ReviewCode, AnalyzeFailure
 from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.analysis.domain.ports import LLMPort
@@ -41,6 +45,49 @@ async def analyze_impact(
     uc: AnalyzeImpact = Depends(_impact_uc),
 ):
     return await uc.execute(req.branch, req.file_paths)
+
+
+@router.post("/review", response_model=CodeReviewResponseDTO)
+async def review_code(
+    req: ImpactAnalysisRequestDTO,
+    llm: LLMPort = Depends(_llm),
+):
+    uc = ReviewCode(llm, get_git_repo())
+    return await uc.execute(req.branch, req.file_paths)
+
+
+@router.post("/conflicts", response_model=MergeConflictResponseDTO)
+async def check_conflicts(
+    req: ImpactAnalysisRequestDTO,
+    llm: LLMPort = Depends(_llm),
+):
+    git_repo = get_git_repo()
+    conflicts = git_repo.check_merge_conflicts(req.branch)
+    if not conflicts:
+        return MergeConflictResponseDTO(has_conflicts=False)
+
+    report = await llm.resolve_conflicts(conflicts)
+    return MergeConflictResponseDTO(
+        has_conflicts=True,
+        conflicting_files=report.conflicting_files,
+        resolutions=[
+            ConflictResolutionDTO(
+                file_path=r.file_path,
+                original_content=r.original_content,
+                resolved_content=r.resolved_content,
+                explanation=r.explanation,
+            )
+            for r in report.resolutions
+        ],
+        summary=report.summary,
+    )
+
+
+@router.post("/conflicts/apply")
+async def apply_resolution(req: ApplyResolutionRequestDTO):
+    git_repo = get_git_repo()
+    sha = git_repo.apply_conflict_resolution(req.branch, req.resolutions)
+    return {"status": "merged", "commit_sha": sha}
 
 
 @router.post("/rca", response_model=RCAResponseDTO)

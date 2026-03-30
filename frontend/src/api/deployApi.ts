@@ -22,3 +22,12 @@ export const triggerRollback = (branch: string, target_sha?: string) =>
 
 export const markRolledBack = (id: number) =>
   client.post(`/deploy/status/${id}/rolled-back`).then(r => r.data);
+
+export interface DeployCompare {
+  from: { id: number; branch: string; commit_sha: string };
+  to: { id: number; branch: string; commit_sha: string };
+  diff_text: string;
+}
+
+export const compareDeploys = (idFrom: number, idTo: number) =>
+  client.get<DeployCompare>(`/deploy/compare/${idFrom}/${idTo}`).then(r => r.data);
