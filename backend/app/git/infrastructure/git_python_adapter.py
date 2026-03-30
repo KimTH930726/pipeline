@@ -212,6 +212,36 @@ class GitPythonRepository(GitRepositoryPort):
         except Exception:
             pass
 
+    def _with_main_checkout(self, operation):
+        """Execute operation on main branch with stash/checkout/restore pattern."""
+        self._cleanup_index()
+        original = (
+            self._repo.active_branch.name
+            if not self._repo.head.is_detached
+            else None
+        )
+        stashed = False
+        try:
+            self._repo.git.stash("push", "-m", "auto-stash")
+            stashed = True
+        except Exception:
+            logger.debug("Nothing to stash")
+
+        try:
+            self._repo.git.checkout("main")
+            return operation()
+        finally:
+            if original and original != "main":
+                try:
+                    self._repo.git.checkout(original)
+                except Exception:
+                    logger.warning("Failed to checkout back to %s", original)
+            if stashed:
+                try:
+                    self._repo.git.stash("pop")
+                except Exception:
+                    logger.warning("Failed to pop stash")
+
     def merge_to_main(self, branch: str) -> str:
         from app.git.domain.exceptions import BranchNotFound
 
@@ -219,32 +249,11 @@ class GitPythonRepository(GitRepositoryPort):
             if branch not in self._branch_names():
                 raise BranchNotFound(branch)
 
-            self._cleanup_index()
-
-            original = (
-                self._repo.active_branch.name
-                if not self._repo.head.is_detached
-                else None
-            )
-            stashed = False
-            try:
-                self._repo.git.stash("push", "-m", "auto-stash before merge")
-                stashed = True
-            except Exception:
-                logger.debug("Nothing to stash before merge")
-
-            try:
-                self._repo.git.checkout("main")
+            def _merge():
                 self._repo.git.merge(branch, "--no-ff", "-m", f"Merge branch '{branch}' into main")
                 return self._repo.head.commit.hexsha
-            finally:
-                if original and original != "main":
-                    self._repo.git.checkout(original)
-                if stashed:
-                    try:
-                        self._repo.git.stash("pop")
-                    except Exception:
-                        logger.warning("Failed to pop stash after merge")
+
+            return self._with_main_checkout(_merge)
 
     def delete_branch(self, branch: str) -> None:
         from app.git.domain.exceptions import BranchNotFound, CannotDeleteMainBranch
@@ -276,32 +285,12 @@ class GitPythonRepository(GitRepositoryPort):
 
     def revert_to(self, branch: str, target_sha: str) -> str:
         with self._lock:
-            self._cleanup_index()
-            original = (
-                self._repo.active_branch.name
-                if not self._repo.head.is_detached
-                else None
-            )
-            stashed = False
-            try:
-                self._repo.git.stash("push", "-m", "auto-stash before revert")
-                stashed = True
-            except Exception:
-                logger.debug("Nothing to stash before revert")
-
-            try:
-                self._repo.git.checkout("main")
+            def _revert():
                 head = self._repo.head.commit
                 if len(head.parents) > 1:
                     self._repo.git.revert("--no-edit", "-m", "1", head.hexsha)
                 else:
                     self._repo.git.revert("--no-edit", head.hexsha)
                 return self._repo.head.commit.hexsha
-            finally:
-                if original and original != "main":
-                    self._repo.git.checkout(original)
-                if stashed:
-                    try:
-                        self._repo.git.stash("pop")
-                    except Exception:
-                        logger.warning("Failed to pop stash after revert")
+
+            return self._with_main_checkout(_revert)

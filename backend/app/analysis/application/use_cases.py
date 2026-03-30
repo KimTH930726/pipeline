@@ -5,6 +5,17 @@ from app.analysis.application.dtos import ImpactAnalysisResponseDTO, CodeReviewR
 from app.git.domain.repositories import GitRepositoryPort
 
 
+def _get_diff_and_files(
+    git_repo: GitRepositoryPort, branch: str, file_paths: list[str] | None = None,
+) -> tuple[str, list[str]]:
+    """Extract diff text and file list from branch (shared by impact + review)."""
+    diff_text = git_repo.get_full_diff(branch)
+    if not file_paths:
+        changes = git_repo.get_changed_files(branch)
+        file_paths = [c.path for c in changes]
+    return diff_text, file_paths
+
+
 class AnalyzeImpact:
     def __init__(self, llm: LLMPort, git_repo: GitRepositoryPort) -> None:
         self._llm = llm
@@ -13,11 +24,7 @@ class AnalyzeImpact:
     async def execute(
         self, branch: str, file_paths: list[str] | None = None
     ) -> ImpactAnalysisResponseDTO:
-        diff_text = self._git.get_full_diff(branch)
-        if not file_paths:
-            changes = self._git.get_changed_files(branch)
-            file_paths = [c.path for c in changes]
-
+        diff_text, file_paths = _get_diff_and_files(self._git, branch, file_paths)
         report = await self._llm.analyze_impact(diff_text, file_paths)
         return ImpactAnalysisResponseDTO(
             risk_level=report.risk_level.value,
@@ -35,11 +42,7 @@ class ReviewCode:
     async def execute(
         self, branch: str, file_paths: list[str] | None = None
     ) -> CodeReviewResponseDTO:
-        diff_text = self._git.get_full_diff(branch)
-        if not file_paths:
-            changes = self._git.get_changed_files(branch)
-            file_paths = [c.path for c in changes]
-
+        diff_text, file_paths = _get_diff_and_files(self._git, branch, file_paths)
         report = await self._llm.review_code(diff_text, file_paths)
         return CodeReviewResponseDTO(
             summary=report.summary,

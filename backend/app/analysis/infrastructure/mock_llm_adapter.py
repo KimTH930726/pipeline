@@ -68,13 +68,12 @@ class MockLLMAdapter(LLMPort):
                         message="print() 문이 발견되었습니다. 운영 코드에서는 logger를 사용하세요.",
                         suggested_code="import logging\nlogger = logging.getLogger(__name__)\nlogger.info(...)",
                     ))
-            if "test" not in f.lower() and len(file_list) > 3:
-                if not any("test" in t.lower() for t in file_list):
-                    comments.append(CodeReviewComment(
-                        file_path=f, line=None, severity="info", category="suggestion",
-                        message="변경된 코드에 대한 테스트 파일이 없습니다. 단위 테스트 추가를 권장합니다.",
-                    ))
-                    break
+        has_tests = any("test" in t.lower() for t in file_list)
+        if not has_tests and len(file_list) > 3:
+            comments.append(CodeReviewComment(
+                file_path=file_list[0], line=None, severity="info", category="suggestion",
+                message="변경된 코드에 대한 테스트 파일이 없습니다. 단위 테스트 추가를 권장합니다.",
+            ))
 
         if not comments:
             comments.append(CodeReviewComment(
