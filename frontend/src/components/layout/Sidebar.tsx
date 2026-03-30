@@ -14,8 +14,8 @@ export default function Sidebar() {
   return (
     <aside className="w-60 bg-gray-900 text-gray-300 flex flex-col min-h-screen">
       <div className="p-4 border-b border-gray-700">
-        <h1 className="text-lg font-bold text-white">SCM Portal</h1>
-        <p className="text-xs text-gray-500">Agentic Deployment</p>
+        <h1 className="text-lg font-bold text-white">Agentic Deployment</h1>
+        <p className="text-xs text-gray-500">StarbucksCSP</p>
       </div>
       <nav className="flex-1 p-2">
         {links.map(({ to, icon: Icon, label }) => (
