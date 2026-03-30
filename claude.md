@@ -37,13 +37,13 @@ backend/app/<context>/
 
 | Context | Responsibility |
 |---------|---------------|
-| **git** | 브랜치 CRUD, diff, merge_to_main, revert_to, commit messages |
+| **git** | 브랜치 CRUD, diff, merge_to_main, revert_to, commit messages, 충돌 감지/해결, 배포간 diff |
 | **review** | 코드 리뷰 승인/반려 (PENDING→APPROVED/REJECTED) |
-| **deployment** | 빌드→머지→Docker 재기동 파이프라인, 배포 이력(페이징), rolled_back 추적 |
-| **analysis** | AI 영향도 분석 + RCA (ai_fix_prompt 포함) |
+| **deployment** | 빌드→충돌체크→머지→Docker 재기동, 배포 이력(페이징), rolled_back, 배포 비교 |
+| **analysis** | AI 영향도 분석 + AI 코드 리뷰 + 머지 충돌 AI 해결 + RCA (ai_fix_prompt) |
 | **rollback** | git revert -m 1 + 자동 재배포 |
 | **sandbox** | 브랜치별 Docker compose 환경 (backend+frontend 동적 포트, worktree) |
-| **audit** | SHA-256 해시체인 감사 로그 |
+| **audit** | SHA-256 해시체인 감사 로그 (브랜치/이벤트 필터) |
 
 ### Cross-Cutting (`backend/app/shared/`)
 - **Event Bus**: In-process async pub/sub. Wired in `main.py` lifespan.
@@ -57,6 +57,10 @@ backend/app/<context>/
 - **Build Pipeline**: 빌드 검증 → main 머지 (stash→checkout→merge→pop) → Docker 재빌드.
 - **Deploy 검증**: API에서 승인 여부 + 브랜치 존재 여부 검증 후 배포 허용.
 - **Rollback**: `git revert -m 1`로 머지 커밋 안전 revert. rolled_back 플래그로 중복 방지.
+- **AI 코드 리뷰**: 버그/보안/성능/스타일/제안 자동 감지. 영향도 분석과 별도 버튼.
+- **머지 충돌 AI 해결**: 배포 시 충돌 감지 → AI가 해결안 생성 → 사용자 승인 후 머지.
+- **배포 비교**: 두 배포 간 commit SHA diff. 비교 모드에서 체크박스로 선택.
+- **Index 정리**: `_cleanup_index()`로 깨진 git 상태 자동 복구 (merge --abort + reset).
 - **Sandbox**: git worktree + docker compose up (backend+frontend만, DB/Redis 공유).
 - **RCA + AI Fix Prompt**: 실패 분석 시 수정 프롬프트까지 생성 (Cursor/Claude에 복사 가능).
 
@@ -64,7 +68,7 @@ backend/app/<context>/
 - **Pages**: Dashboard(`/`), Branch(`/branches`), Review(`/review`), Deploy(`/deploy`), Sandbox(`/sandbox`), Audit(`/audit`)
 - **State**: Zustand store — deployment state, build log, RCA report
 - **API Layer**: Typed wrappers in `api/{deployApi,gitApi,reviewApi,auditApi}.ts`
-- **Deploy Page**: 승인된 브랜치만 표시, 변경사항 미리보기, 이력 페이징+토글 상세, 원복 버튼
+- **Deploy Page**: 승인 브랜치만 표시, 변경사항 미리보기, 충돌 해결 UI, 이력 페이징+토글+비교 모드, 원복
 
 ## Environment Variables
 | Variable | Default | Purpose |
@@ -83,7 +87,9 @@ backend/app/<context>/
 - `POST /api/review/approve|reject`, `GET /api/review/approved`
 - `POST /api/deploy/`, `GET /api/deploy/recent?page=&size=`, `GET /api/deploy/status/{id}`
 - `WS /api/deploy/ws/{id}` — 실시간 빌드 로그
-- `POST /api/analysis/impact|rca`
+- `POST /api/analysis/impact|review|conflicts|rca`
+- `POST /api/analysis/conflicts/apply` — 충돌 해결안 적용
+- `GET /api/deploy/compare/{id_from}/{id_to}` — 배포 간 diff
 - `POST /api/rollback/`
 - `POST /api/sandbox/`, `POST /api/sandbox/{id}/stop`, `DELETE /api/sandbox/{id}`
 - `GET /api/audit/timeline?branch=&event_type=`

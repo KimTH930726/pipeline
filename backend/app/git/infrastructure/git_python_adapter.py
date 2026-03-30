@@ -201,12 +201,25 @@ class GitPythonRepository(GitRepositoryPort):
             logger.debug("No parent commit found for branch %s", branch)
         return None
 
+    def _cleanup_index(self) -> None:
+        """Clean up broken git index state before operations."""
+        try:
+            self._repo.git.merge("--abort")
+        except Exception:
+            pass
+        try:
+            self._repo.git.reset("HEAD")
+        except Exception:
+            pass
+
     def merge_to_main(self, branch: str) -> str:
         from app.git.domain.exceptions import BranchNotFound
 
         with self._lock:
             if branch not in self._branch_names():
                 raise BranchNotFound(branch)
+
+            self._cleanup_index()
 
             original = (
                 self._repo.active_branch.name
@@ -263,6 +276,7 @@ class GitPythonRepository(GitRepositoryPort):
 
     def revert_to(self, branch: str, target_sha: str) -> str:
         with self._lock:
+            self._cleanup_index()
             original = (
                 self._repo.active_branch.name
                 if not self._repo.head.is_detached

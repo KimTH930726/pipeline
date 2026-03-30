@@ -166,22 +166,27 @@ infrastructure/  ← SQLAlchemy, GitPython, LLM Adapter
 ### 코드 리뷰 & 승인
 - 브랜치별 변경 파일 목록 (A/M/D 상태)
 - Unified Diff 뷰어
-- AI 영향도 분석 (위험도 LOW~CRITICAL, 영향 서비스, 권장사항)
+- **AI 영향도 분석** (위험도 LOW~CRITICAL, 영향 서비스, 권장사항) — 별도 버튼
+- **AI 코드 리뷰** (버그/보안/성능/스타일/제안 자동 감지) — 별도 버튼
 - 승인/반려 처리 (main 승인 불가, 빈 브랜치 방지)
 - 상태 전환: PENDING → APPROVED / REJECTED
+- 분석 결과 마크다운 렌더링
 
 ### 배포 파이프라인
 - **승인된 브랜치만** 배포 가능 (API 레벨 검증)
 - 배포 대상 변경사항 미리보기 (파일 목록 + diff)
+- **머지 충돌 자동 감지** → AI가 해결안 생성 → 사용자 승인 후 머지
 - 빌드 검증 → main 자동 머지 → Docker 재빌드/재기동
 - WebSocket 실시간 빌드 로그 스트리밍
 - 커밋 메시지 저장 (대시보드에서 확인)
 - 배포 이력 페이징 + 토글 상세 보기
+- **배포 비교**: 2개 배포 선택 → 커밋 간 diff 비교
 
 ### AI 실패 분석 (RCA)
 - 빌드 실패 시 로그 자동 수집 → LLM 분석
 - 원인(Root Cause), 영향 파일, 수정 가이드, 신뢰도
 - **AI 수정 요청 프롬프트** 제공 (클립보드 복사 → Cursor/Claude에 붙여넣기)
+- 분석 결과 마크다운 렌더링
 
 ### 원복 (Rollback)
 - 성공/실패 배포 모두 원복 가능
@@ -331,12 +336,16 @@ environment:
 | `GET` | `/api/deploy/status/{id}` | 배포 상세 (빌드로그 포함) |
 | `GET` | `/api/deploy/recent?page=&size=` | 배포 이력 (페이징) |
 | `POST` | `/api/deploy/status/{id}/rolled-back` | 원복 표시 |
+| `GET` | `/api/deploy/compare/{id_from}/{id_to}` | 배포 간 diff 비교 |
 | `WS` | `/api/deploy/ws/{id}` | 실시간 빌드 로그 |
 
 ### Analysis / Rollback / Sandbox / Audit
 | 메서드 | 엔드포인트 | 설명 |
 |--------|-----------|------|
 | `POST` | `/api/analysis/impact` | AI 영향도 분석 |
+| `POST` | `/api/analysis/review` | AI 코드 리뷰 (버그/보안/성능/스타일) |
+| `POST` | `/api/analysis/conflicts` | 머지 충돌 감지 + AI 해결안 생성 |
+| `POST` | `/api/analysis/conflicts/apply` | AI 충돌 해결안 적용 + 머지 |
 | `POST` | `/api/analysis/rca` | AI 실패 분석 |
 | `POST` | `/api/rollback/` | 원복 실행 |
 | `POST` | `/api/sandbox/` | 샌드박스 생성 |
