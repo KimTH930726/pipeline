@@ -25,3 +25,4 @@ class RCAReport:
     affected_files: list[str]
     suggested_fix: str
     confidence_score: float
+    ai_fix_prompt: str = ""

@@ -38,4 +38,5 @@ class AnalyzeFailure:
             affected_files=report.affected_files,
             suggested_fix=report.suggested_fix,
             confidence_score=report.confidence_score,
+            ai_fix_prompt=report.ai_fix_prompt,
         )

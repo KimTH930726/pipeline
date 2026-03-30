@@ -26,4 +26,5 @@ export interface RCAReport {
   affected_files: string[];
   suggested_fix: string;
   confidence_score: number;
+  ai_fix_prompt: string;
 }

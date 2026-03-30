@@ -1,4 +1,5 @@
-import { AlertTriangle, FileCode, Wrench } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, FileCode, Wrench, Copy, Check, Bot } from 'lucide-react';
 import type { RCAReport as RCAReportType } from '../../types/deploy';
 
 interface Props {
@@ -7,6 +8,13 @@ interface Props {
 
 export default function RCAReport({ report }: Props) {
   const confidencePercent = Math.round(report.confidence_score * 100);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(report.ai_fix_prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="border border-red-200 bg-red-50 rounded-lg p-4 space-y-4">
@@ -46,6 +54,23 @@ export default function RCAReport({ report }: Props) {
         </h4>
         <p className="text-sm text-gray-800">{report.suggested_fix}</p>
       </div>
+
+      {report.ai_fix_prompt && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-xs font-semibold text-red-600 flex items-center gap-1">
+              <Bot size={12} /> AI 수정 요청 프롬프트
+            </h4>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-red-200 hover:bg-white transition-colors"
+            >
+              {copied ? <><Check size={10} className="text-green-600" /> 복사됨</> : <><Copy size={10} /> 복사</>}
+            </button>
+          </div>
+          <pre className="text-xs text-gray-700 bg-white border border-red-200 rounded p-3 whitespace-pre-wrap">{report.ai_fix_prompt}</pre>
+        </div>
+      )}
 
       <div className="w-full bg-gray-200 rounded-full h-1.5">
         <div

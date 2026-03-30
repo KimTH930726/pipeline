@@ -202,6 +202,7 @@ class BuildProcessRunner:
             "affected_files": rca.affected_files,
             "suggested_fix": rca.suggested_fix,
             "confidence_score": rca.confidence_score,
+            "ai_fix_prompt": rca.ai_fix_prompt,
         }
         await ws_manager.broadcast(dep_id_str, {"type": "rca", "data": rca_dict})
         await self._event_bus.publish(DeploymentFailed(
