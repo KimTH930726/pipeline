@@ -26,12 +26,12 @@ async def request_review(body: ReviewRequestDTO, repo=Depends(_repo)):
 
 @router.post("/approve", response_model=ReviewResponseDTO)
 async def approve(body: ReviewRequestDTO, repo=Depends(_repo), user: dict = Depends(get_current_user)):
-    return await ApproveReview(repo).execute(body.branch, body.comment)
+    return await ApproveReview(repo).execute(body.branch, body.comment, acted_by=user["username"])
 
 
 @router.post("/reject", response_model=ReviewResponseDTO)
 async def reject(body: ReviewRequestDTO, repo=Depends(_repo), user: dict = Depends(get_current_user)):
-    return await RejectReview(repo).execute(body.branch, body.comment)
+    return await RejectReview(repo).execute(body.branch, body.comment, acted_by=user["username"])
 
 
 @router.get("/status/{branch:path}", response_model=ReviewResponseDTO)

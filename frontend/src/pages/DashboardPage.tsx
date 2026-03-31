@@ -107,6 +107,7 @@ export default function DashboardPage() {
                       </div>
                     )}
                     <div className="text-xs text-gray-400 mt-0.5">
+                      {d.acted_by && <span className="mr-2 text-gray-500">{d.acted_by}</span>}
                       {d.started_at ? new Date(d.started_at).toLocaleString('ko-KR') : '-'}
                       {d.commit_sha && <span className="ml-2 font-mono">{d.commit_sha.slice(0, 8)}</span>}
                     </div>

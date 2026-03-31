@@ -359,6 +359,7 @@ export default function DeployPage() {
                 <th className="pb-2">ID</th>
                 <th className="pb-2">브랜치</th>
                 <th className="pb-2">상태</th>
+                <th className="pb-2">수행자</th>
                 <th className="pb-2">커밋</th>
                 <th className="pb-2">시작</th>
                 <th className="pb-2"></th>
@@ -394,7 +395,8 @@ export default function DeployPage() {
                         )}
                       </div>
                     </td>
-                    <td className="py-2 font-mono text-xs">{d.commit_sha?.slice(0, 8) || '-'}</td>
+                    <td className="py-2 text-xs text-gray-600">{d.acted_by || '-'}</td>
+                  <td className="py-2 font-mono text-xs">{d.commit_sha?.slice(0, 8) || '-'}</td>
                     <td className="py-2 text-xs text-gray-500">
                       {d.started_at ? new Date(d.started_at).toLocaleString('ko-KR') : '-'}
                     </td>
@@ -405,7 +407,7 @@ export default function DeployPage() {
                   {/* 토글 상세 */}
                   {expandedId === d.id && (
                     <tr key={`detail-${d.id}`}>
-                      <td colSpan={compareMode ? 7 : 6} className="p-4 bg-gray-50 border-b">
+                      <td colSpan={compareMode ? 8 : 7} className="p-4 bg-gray-50 border-b">
                         {loadingDetail ? (
                           <p className="text-sm text-gray-500">로딩 중...</p>
                         ) : expandedDetail ? (

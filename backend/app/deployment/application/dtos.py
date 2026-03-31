@@ -14,6 +14,7 @@ class DeployStatusDTO(BaseModel):
     commit_sha: str | None
     status: str
     rolled_back: bool = False
+    acted_by: str | None = None
     commit_messages: str | None = None
     started_at: datetime | None
     finished_at: datetime | None

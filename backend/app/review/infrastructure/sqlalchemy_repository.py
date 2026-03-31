@@ -17,6 +17,7 @@ class SQLAlchemyReviewRepository(ReviewRepositoryPort):
             branch=review.branch,
             status=review.status.value,
             comment=review.comment,
+            acted_by=review.acted_by,
             created_at=review.created_at,
             reviewed_at=review.reviewed_at,
         )
@@ -35,6 +36,7 @@ class SQLAlchemyReviewRepository(ReviewRepositoryPort):
             return
         model.status = review.status.value
         model.comment = review.comment
+        model.acted_by = review.acted_by
         model.reviewed_at = review.reviewed_at
         await self._db.commit()
 
@@ -71,6 +73,7 @@ class SQLAlchemyReviewRepository(ReviewRepositoryPort):
             branch=model.branch,
             status=ReviewStatus(model.status),
             comment=model.comment,
+            acted_by=model.acted_by,
             created_at=model.created_at,
             reviewed_at=model.reviewed_at,
         )

@@ -72,7 +72,7 @@ async def trigger_deploy(
     if req.branch not in branches:
         raise HTTPException(status_code=404, detail=f"Branch '{req.branch}' not found")
 
-    return await uc.execute(req.branch)
+    return await uc.execute(req.branch, acted_by=user["username"])
 
 
 @router.get("/status/{deployment_id}", response_model=DeployDetailDTO)

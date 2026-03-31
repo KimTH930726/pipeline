@@ -20,7 +20,7 @@ class TriggerDeploy:
         self._git = git_repo
         self._runner = build_runner
 
-    async def execute(self, branch: str) -> DeployStatusDTO:
+    async def execute(self, branch: str, acted_by: str | None = None) -> DeployStatusDTO:
         try:
             sha = self._git.get_current_sha(branch)
         except Exception:
@@ -32,6 +32,7 @@ class TriggerDeploy:
             commit_sha=sha,
             status=DeploymentStatus.BUILDING,
             commit_messages="\n".join(messages) if messages else None,
+            acted_by=acted_by,
         )
         deployment = await self._repo.save(deployment)
 
@@ -47,6 +48,7 @@ class TriggerDeploy:
             commit_sha=d.commit_sha,
             status=d.status.value,
             rolled_back=d.rolled_back,
+            acted_by=d.acted_by,
             commit_messages=d.commit_messages,
             started_at=d.started_at,
             finished_at=d.finished_at,
@@ -64,7 +66,7 @@ class GetDeployment:
         return DeployDetailDTO(
             id=dep.id, branch=dep.branch, commit_sha=dep.commit_sha,
             status=dep.status.value, rolled_back=dep.rolled_back,
-            commit_messages=dep.commit_messages,
+            acted_by=dep.acted_by, commit_messages=dep.commit_messages,
             started_at=dep.started_at, finished_at=dep.finished_at,
             build_log=dep.build_log, error_log=dep.error_log,
         )

@@ -24,5 +24,6 @@ class ReviewResponseDTO(BaseModel):
     branch: str
     status: str
     comment: str | None
+    acted_by: str | None = None
     created_at: datetime
     reviewed_at: datetime | None

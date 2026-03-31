@@ -28,6 +28,7 @@ class Deployment:
     build_log: str | None = None
     error_log: str | None = None
     commit_messages: str | None = None
+    acted_by: str | None = None
     rolled_back: bool = False
     started_at: datetime = field(default_factory=datetime.utcnow)
     finished_at: datetime | None = None

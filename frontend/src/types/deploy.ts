@@ -4,6 +4,7 @@ export interface DeployStatus {
   commit_sha: string | null;
   status: string;
   rolled_back: boolean;
+  acted_by: string | null;
   commit_messages: string | null;
   started_at: string | null;
   finished_at: string | null;

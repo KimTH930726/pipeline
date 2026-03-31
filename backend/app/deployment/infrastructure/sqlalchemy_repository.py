@@ -20,6 +20,7 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
             build_log=deployment.build_log,
             error_log=deployment.error_log,
             commit_messages=deployment.commit_messages,
+            acted_by=deployment.acted_by,
             started_at=deployment.started_at,
             finished_at=deployment.finished_at,
         )
@@ -86,6 +87,7 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
             build_log=orm.build_log,
             error_log=orm.error_log,
             commit_messages=orm.commit_messages,
+            acted_by=orm.acted_by,
             rolled_back=bool(orm.rolled_back),
             started_at=orm.started_at,
             finished_at=orm.finished_at,
