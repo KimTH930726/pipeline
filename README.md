@@ -158,58 +158,45 @@ infrastructure/  ← SQLAlchemy, GitPython, LLM Adapter
 
 ## 4. 기능 상세
 
+### 사용자 인증
+- JWT 기반 인증 (access 8시간, refresh 7일)
+- 회원가입: 셀프 신청(비활성) → 관리자 승인 → 로그인 가능
+- 사용자별 LLM API Key 관리 (Fernet 암호화)
+- 비밀번호 변경 (설정 페이지)
+- 역할: admin / user
+
 ### 브랜치 관리
-- 기준 브랜치 선택 → 새 브랜치 생성
-- 브랜치 삭제 (main 삭제 방지)
-- 브랜치 목록 조회 (커밋 SHA, 메시지, 상태)
+- 기준 브랜치 선택 → 새 브랜치 생성 / 삭제 (main 삭제 방지)
 
-### 코드 리뷰 & 승인
-- 브랜치별 변경 파일 목록 (A/M/D 상태)
-- Unified Diff 뷰어
-- **AI 영향도 분석** (위험도 LOW~CRITICAL, 영향 서비스, 권장사항) — 별도 버튼
-- **AI 코드 리뷰** (버그/보안/성능/스타일/제안 자동 감지) — 별도 버튼
-- 승인/반려 처리 (main 승인 불가, 빈 브랜치 방지)
-- 상태 전환: PENDING → APPROVED / REJECTED
-- 분석 결과 마크다운 렌더링
+### 코드 리뷰
+- 변경 파일 목록 + Unified Diff 뷰어
+- **AI 영향도 분석** / **AI 코드 리뷰** (별도 버튼, 마크다운 렌더링)
+- 승인/반려 + 수행자(acted_by) 기록
 
-### 배포 파이프라인
-- **승인된 브랜치만** 배포 가능 (API 레벨 검증)
-- 배포 대상 변경사항 미리보기 (파일 목록 + diff)
-- **머지 충돌 자동 감지** → AI가 해결안 생성 → 사용자 승인 후 머지
-- 빌드 검증 → main 자동 머지 → Docker 재빌드/재기동
-- WebSocket 실시간 빌드 로그 스트리밍
-- 커밋 메시지 저장 (대시보드에서 확인)
-- 배포 이력 페이징 + 토글 상세 보기
-- **배포 비교**: 2개 배포 선택 → 커밋 간 diff 비교
+### 배포
+- 승인된 브랜치만 배포 (인증 + API 레벨 검증)
+- 머지 충돌 자동 감지 → AI 해결안 → 사용자 승인 후 머지
+- 빌드 → main 머지 → Docker 재기동 + 실시간 로그(WebSocket)
+- 배포 이력 페이징 + 토글 상세 + 수행자 표시
+- 배포 비교: 2개 선택 → diff
 
 ### AI 실패 분석 (RCA)
-- 빌드 실패 시 로그 자동 수집 → LLM 분석
-- 원인(Root Cause), 영향 파일, 수정 가이드, 신뢰도
-- **AI 수정 요청 프롬프트** 제공 (클립보드 복사 → Cursor/Claude에 붙여넣기)
-- 분석 결과 마크다운 렌더링
+- 빌드 로그 → LLM 분석 → 원인/수정가이드/AI 수정 프롬프트(클립보드 복사)
 
-### 원복 (Rollback)
-- 성공/실패 배포 모두 원복 가능
-- `git revert -m 1` (머지 커밋 안전 revert)
-- 원복 후 자동 재배포 트리거
-- 원복 중복 방지 (rolled_back 플래그)
+### 원복
+- 성공/실패 모두 원복 가능, `git revert -m 1`, 중복 방지
 
 ### 샌드박스
-- 브랜치별 독립 Docker 환경 (backend + frontend)
-- 포트 쌍 자동 할당 (9100~9199)
-- git worktree로 격리된 코드 체크아웃
-- 생성/중지/삭제 (이미지까지 정리)
-- main 브랜치 제외
+- 브랜치별 Docker 환경 (backend+frontend, 포트 9100~9199, main 제외)
 
 ### 감사 로그
-- 배포/실패/원복 이벤트 자동 기록
-- SHA-256 해시체인 (변조 감지)
-- 이벤트 타입 + 브랜치별 필터
+- 배포/실패/원복 자동 기록, SHA-256 해시체인, 브랜치/이벤트 필터, 페이징
 
 ### 대시보드
-- 총 배포/성공/실패/원복 통계 카드
-- main 배포 이력 (`feature/xxx → main` + 커밋 메시지)
-- 토글로 빌드 로그 상세 확인
+- 통계 카드 + main 배포 이력(수행자, 커밋 메시지) + 토글 상세
+
+### 공통
+- 탭 포커스 시 자동 데이터 리로드 (전 페이지)
 
 ---
 
@@ -339,19 +326,30 @@ environment:
 | `GET` | `/api/deploy/compare/{id_from}/{id_to}` | 배포 간 diff 비교 |
 | `WS` | `/api/deploy/ws/{id}` | 실시간 빌드 로그 |
 
+### Auth
+| 메서드 | 엔드포인트 | 설명 |
+|--------|-----------|------|
+| `POST` | `/api/auth/login` | 로그인 → JWT 토큰 |
+| `POST` | `/api/auth/signup` | 회원가입 (관리자 승인 필요) |
+| `POST` | `/api/auth/refresh` | 토큰 갱신 |
+| `GET` | `/api/auth/me` | 내 정보 |
+| `PUT` | `/api/auth/me/password` | 비밀번호 변경 |
+| `PUT` | `/api/auth/me/api-key` | LLM API Key 등록/변경 |
+| `GET` | `/api/auth/users` | 사용자 목록 (admin) |
+| `PUT` | `/api/auth/users/{id}/activate\|deactivate` | 승인/비활성 (admin) |
+
 ### Analysis / Rollback / Sandbox / Audit
 | 메서드 | 엔드포인트 | 설명 |
 |--------|-----------|------|
 | `POST` | `/api/analysis/impact` | AI 영향도 분석 |
-| `POST` | `/api/analysis/review` | AI 코드 리뷰 (버그/보안/성능/스타일) |
-| `POST` | `/api/analysis/conflicts` | 머지 충돌 감지 + AI 해결안 생성 |
-| `POST` | `/api/analysis/conflicts/apply` | AI 충돌 해결안 적용 + 머지 |
+| `POST` | `/api/analysis/review` | AI 코드 리뷰 |
+| `POST` | `/api/analysis/conflicts` | 머지 충돌 감지 + AI 해결 |
+| `POST` | `/api/analysis/conflicts/apply` | 충돌 해결안 적용 |
 | `POST` | `/api/analysis/rca` | AI 실패 분석 |
 | `POST` | `/api/rollback/` | 원복 실행 |
 | `POST` | `/api/sandbox/` | 샌드박스 생성 |
-| `POST` | `/api/sandbox/{id}/stop` | 샌드박스 중지 |
 | `DELETE` | `/api/sandbox/{id}` | 샌드박스 삭제 |
-| `GET` | `/api/audit/timeline` | 감사 로그 (브랜치/이벤트 필터) |
+| `GET` | `/api/audit/timeline` | 감사 로그 (필터, 페이징) |
 
 ---
 
@@ -359,29 +357,33 @@ environment:
 
 | 페이지 | 경로 | 설명 |
 |--------|------|------|
-| **대시보드** | `/` | main 배포 이력 + 커밋 메시지 + 통계 카드 |
-| **브랜치 관리** | `/branches` | 브랜치 생성/삭제/목록 |
-| **코드 리뷰** | `/review` | diff 확인 + AI 영향도 + 승인/반려 |
-| **배포** | `/deploy` | 승인 브랜치 배포 + 실시간 로그 + 원복 |
-| **샌드박스** | `/sandbox` | 브랜치별 Docker 테스트 환경 |
-| **감사 로그** | `/audit` | 이벤트 타임라인 (브랜치/타입 필터) |
+| **로그인** | `/login` | JWT 인증 |
+| **회원가입** | `/signup` | 셀프 신청 (관리자 승인 대기) |
+| **대시보드** | `/` | main 배포 이력 + 수행자 + 커밋 메시지 |
+| **브랜치 관리** | `/branches` | 생성/삭제/목록 |
+| **코드 리뷰** | `/review` | diff + AI 영향도/코드리뷰 + 승인/반려 |
+| **배포** | `/deploy` | 배포 + 충돌 해결 + 이력 비교 + 원복 |
+| **샌드박스** | `/sandbox` | 브랜치별 Docker 환경 |
+| **감사 로그** | `/audit` | 이벤트 타임라인 (필터, 페이징) |
+| **설정** | `/settings` | 비밀번호 변경 + API Key 관리 |
+| **사용자 관리** | `/admin` | 승인/비활성화/등록 (admin만) |
 
 ---
 
 ## 10. 설정
 
-### 환경 변수
-| 변수 | 기본값 | 설명 |
-|------|--------|------|
-| `REPO_PATH` | `~/agentic-scm-portal/sample-repo` | Git 레포 경로 |
-| `DATABASE_URL` | `sqlite+aiosqlite:///...` | DB 연결 |
-| `LLM_MODE` | `mock` | `mock` (regex) / `vpc` (실제 LLM) |
-| `LLM_ENDPOINT` | `http://localhost:11434/...` | VPC LLM 엔드포인트 |
-| `DEPLOY_TARGET_PATH` | (미설정) | 배포 대상 docker-compose 경로 |
-| `DEPLOY_COMPOSE_FILE` | `docker-compose.yml` | compose 파일명 |
-| `DEPLOY_SERVICE_NAME` | (전체) | 재빌드할 서비스명 |
-| `SANDBOX_PORT_MIN/MAX` | `9100`/`9199` | 샌드박스 포트 범위 |
-| `CORS_ORIGINS` | `["http://localhost:5173"]` | CORS 허용 |
+### 환경 변수 (.env로 관리)
+| 변수 | 설명 |
+|------|------|
+| `REPO_PATH` | Git 레포 경로 |
+| `DATABASE_URL` | SQLite 경로 |
+| `LLM_ENDPOINT` | DevX MCP API URL |
+| `LLM_API_KEY` | 시스템 LLM Key (사용자 키 없을 때 fallback) |
+| `JWT_SECRET_KEY` | JWT 서명 키 |
+| `FERNET_SECRET_KEY` | API Key 암호화 키 |
+| `ADMIN_DEFAULT_PASSWORD` | 초기 admin 비밀번호 (기본: admin1234) |
+| `DEPLOY_TARGET_PATH` | 배포 대상 docker-compose 경로 |
+| `DEPLOY_COMPOSE_FILE` | compose 파일명 |
 
 ---
 
