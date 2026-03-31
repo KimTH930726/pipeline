@@ -15,7 +15,7 @@ services:
       - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
       - LLM_MODE=inhouse
       - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
-      - FERNET_SECRET_KEY=yw04wh9Y8cnVfl92A1v6ou3V23XbtDNFe1mKrEtEkP8=
+      - FERNET_SECRET_KEY=${FERNET_SECRET_KEY:-}
       - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
       # ─── 배포 대상 설정 가이드 ───
       #
