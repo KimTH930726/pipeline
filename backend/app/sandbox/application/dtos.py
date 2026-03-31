@@ -13,3 +13,4 @@ class SandboxResponseDTO(BaseModel):
     backend_port: int
     frontend_port: int
     status: str
+    error_log: str = ""

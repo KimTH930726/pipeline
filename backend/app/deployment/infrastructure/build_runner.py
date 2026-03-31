@@ -136,8 +136,8 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
-        # docker compose restart/up은 docker.sock 통해 호스트에서 실행 → 호스트 경로
-        host_compose = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
+        # compose 파일은 컨테이너 안에서 읽으므로 컨테이너 내부 경로
+        host_compose = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 

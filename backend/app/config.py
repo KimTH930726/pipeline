@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
     DEPLOY_SERVICE_NAME: str = "backend frontend"
     DEPLOY_MODE: str = "restart"
+    SANDBOX_HOST_PATH: str = "/tmp/pipeline-sandboxes"
+    SANDBOX_CONTAINER_PATH: str = "/sandboxes"
 
     class Config:
         env_file = ".env"

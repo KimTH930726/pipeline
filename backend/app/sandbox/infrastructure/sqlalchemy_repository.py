@@ -20,6 +20,7 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
             status=sandbox.status.value,
             worktree_path=sandbox.worktree_path,
             project_name=sandbox.project_name,
+            error_log=sandbox.error_log,
             created_at=sandbox.created_at,
         )
         self._db.add(orm)
@@ -37,6 +38,7 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
             orm.status = sandbox.status.value
             orm.worktree_path = sandbox.worktree_path
             orm.project_name = sandbox.project_name
+            orm.error_log = sandbox.error_log
             await self._db.commit()
 
     async def delete(self, sandbox_id: int) -> bool:
@@ -83,5 +85,6 @@ class SQLAlchemySandboxRepository(SandboxRepositoryPort):
             status=SandboxStatus(orm.status),
             worktree_path=orm.worktree_path,
             project_name=orm.project_name,
+            error_log=orm.error_log or "",
             created_at=orm.created_at,
         )

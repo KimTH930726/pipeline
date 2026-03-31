@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import asyncio
 
+import logging
+
 from app.sandbox.domain.entities import Sandbox
 from app.sandbox.domain.repositories import SandboxRepositoryPort
 from app.sandbox.domain.exceptions import SandboxNotFound
 from app.sandbox.infrastructure.port_allocator import allocate_port_pair
 from app.sandbox.infrastructure.process_manager import SandboxProcessManager
+from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRepository
 from app.sandbox.application.dtos import SandboxResponseDTO
+from app.shared.infrastructure.database import SessionFactory
+
+logger = logging.getLogger(__name__)
 
 
 class CreateSandbox:
@@ -30,25 +36,33 @@ class CreateSandbox:
     async def _start(self, sandbox: Sandbox) -> None:
         try:
             sandbox.project_name = f"sandbox-{sandbox.id}"
-            ok = await SandboxProcessManager.start(
+            ok, error_log = await SandboxProcessManager.start(
                 project_name=sandbox.project_name,
+                branch=sandbox.branch,
                 backend_port=sandbox.backend_port,
                 frontend_port=sandbox.frontend_port,
             )
+            sandbox.error_log = error_log
             if ok:
                 sandbox.mark_running()
             else:
                 sandbox.mark_error()
-        except Exception:
+        except Exception as e:
+            logger.exception("Sandbox start error for %s", sandbox.id)
+            sandbox.error_log = str(e)
             sandbox.mark_error()
-        await self._repo.update(sandbox)
+
+        # 비동기 태스크에서 세션이 닫혀있을 수 있으므로 새 세션 사용
+        async with SessionFactory() as db:
+            repo = SQLAlchemySandboxRepository(db)
+            await repo.update(sandbox)
 
     @staticmethod
     def _to_dto(s: Sandbox) -> SandboxResponseDTO:
         return SandboxResponseDTO(
             id=s.id, branch=s.branch,
             backend_port=s.backend_port, frontend_port=s.frontend_port,
-            status=s.status.value,
+            status=s.status.value, error_log=s.error_log,
         )
 
 

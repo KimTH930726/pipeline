@@ -6,6 +6,7 @@ services:
     volumes:
       - ${REPO_HOST_PATH:-./data/repo}:/repo
       - ${DEPLOY_TARGET_PATH:-./data/repo}:/deploy-target
+      - ${SANDBOX_HOST_PATH:-/tmp/pipeline-sandboxes}:/sandboxes
       - db-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -22,6 +23,7 @@ services:
       - DEPLOY_COMPOSE_FILE=${DEPLOY_COMPOSE_FILE:-docker-compose.yml}
       - DEPLOY_SERVICE_NAME=${DEPLOY_SERVICE_NAME:-backend}
       - DEPLOY_MODE=${DEPLOY_MODE:-restart}
+      - SANDBOX_HOST_PATH=${SANDBOX_HOST_PATH:-/tmp/pipeline-sandboxes}
       - GIT_CLONE_URL=${GIT_CLONE_URL:-}
 
   frontend:

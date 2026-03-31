@@ -14,4 +14,5 @@ class SandboxORM(Base):
     status = Column(String(20), nullable=False, default="CREATING")
     worktree_path = Column(String(500), nullable=True)
     project_name = Column(String(255), nullable=True)
+    error_log = Column(String, nullable=True, default="")
     created_at = Column(DateTime, nullable=False)

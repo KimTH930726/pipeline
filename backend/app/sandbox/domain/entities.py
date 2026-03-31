@@ -20,6 +20,7 @@ class Sandbox:
     status: SandboxStatus = SandboxStatus.CREATING
     worktree_path: str | None = None
     project_name: str | None = None
+    error_log: str = ""
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     id: int | None = None
 

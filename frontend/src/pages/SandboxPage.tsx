@@ -12,6 +12,7 @@ interface SandboxInfo {
   backend_port: number;
   frontend_port: number;
   status: string;
+  error_log: string;
 }
 
 export default function SandboxPage() {
@@ -146,6 +147,13 @@ export default function SandboxPage() {
               </div>
             </div>
 
+            {s.status === 'ERROR' && s.error_log && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                <p className="text-xs font-semibold text-red-600 mb-1">오류 원인</p>
+                <pre className="text-xs text-red-700 whitespace-pre-wrap">{s.error_log}</pre>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 border-t pt-3">
               {s.status === 'RUNNING' && (
                 <button
@@ -167,6 +175,16 @@ export default function SandboxPage() {
         {sandboxes.length === 0 && (
           <p className="col-span-2 text-sm text-gray-400 text-center py-8">활성 샌드박스가 없습니다.</p>
         )}
+      </div>
+
+      <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
+        <p className="font-semibold mb-1">샌드박스 제한사항</p>
+        <ul className="list-disc ml-4 space-y-0.5 text-xs">
+          <li>소스 코드 변경만 반영됩니다 (Python/React 소스 수정)</li>
+          <li>패키지 추가(pip install, npm install)가 필요한 변경은 샌드박스에서 동작하지 않습니다</li>
+          <li>패키지 변경이 포함된 브랜치는 로컬 환경에서 직접 테스트하세요</li>
+          <li>DB/Redis는 운영 환경과 공유됩니다</li>
+        </ul>
       </div>
     </div>
   );
