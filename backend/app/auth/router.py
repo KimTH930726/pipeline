@@ -7,9 +7,9 @@ from app.shared.infrastructure.database import get_db
 from app.shared.infrastructure.security import decode_token
 from app.auth.schemas import (
     LoginRequest, SignupRequest, RegisterRequest, TokenResponse, RefreshRequest,
-    AccessTokenResponse, UserOut, ApiKeyUpdateRequest,
+    AccessTokenResponse, UserOut, ApiKeyUpdateRequest, PasswordChangeRequest,
 )
-from app.auth.service import authenticate, signup_user, create_user, activate_user, get_user_by_id, list_users, update_api_key, make_tokens
+from app.auth.service import authenticate, signup_user, create_user, activate_user, get_user_by_id, list_users, update_api_key, change_password, make_tokens
 from app.auth.dependencies import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -88,6 +88,14 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
 async def get_me(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     u = await get_user_by_id(db, user["id"])
     return _to_user_out(u)
+
+
+@router.put("/me/password")
+async def change_my_password(body: PasswordChangeRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    ok = await change_password(db, user["id"], body.current_password, body.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 올바르지 않습니다.")
+    return {"status": "ok"}
 
 
 @router.put("/me/api-key")

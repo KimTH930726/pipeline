@@ -92,6 +92,15 @@ def get_user_api_key(user: UserModel) -> str | None:
         return None
 
 
+async def change_password(db: AsyncSession, user_id: int, current_pw: str, new_pw: str) -> bool:
+    user = await get_user_by_id(db, user_id)
+    if not user or not verify_password(current_pw, user.hashed_password):
+        return False
+    user.hashed_password = hash_password(new_pw)
+    await db.commit()
+    return True
+
+
 def make_tokens(user: UserModel) -> dict:
     payload = {"sub": str(user.id), "username": user.username, "role": user.role}
     return {

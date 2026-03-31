@@ -48,3 +48,8 @@ class UserOut(BaseModel):
 
 class ApiKeyUpdateRequest(BaseModel):
     llm_api_key: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str

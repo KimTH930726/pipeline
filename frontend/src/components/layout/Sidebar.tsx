@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User, Users } from 'lucide-react';
+import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User, Users, Settings } from 'lucide-react';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
@@ -52,6 +52,9 @@ export default function Sidebar() {
               <p className="text-sm text-white truncate">{user.username}</p>
               <p className="text-xs text-gray-500">{user.role}</p>
             </div>
+            <NavLink to="/settings" className="text-gray-500 hover:text-white" title="설정">
+              <Settings size={16} />
+            </NavLink>
             <button onClick={handleLogout} className="text-gray-500 hover:text-white" title="로그아웃">
               <LogOut size={16} />
             </button>
