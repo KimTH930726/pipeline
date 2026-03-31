@@ -9,13 +9,13 @@ from app.analysis.application.dtos import (
     ImpactAnalysisRequestDTO,
     ImpactAnalysisResponseDTO,
     CodeReviewResponseDTO,
+    CodeReviewCommentDTO,
     MergeConflictResponseDTO,
     ConflictResolutionDTO,
     ApplyResolutionRequestDTO,
     RCARequestDTO,
     RCAResponseDTO,
 )
-from app.analysis.application.use_cases import AnalyzeImpact, ReviewCode, AnalyzeFailure
 from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.analysis.domain.ports import LLMPort
@@ -23,8 +23,11 @@ from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.auth.dependencies import get_current_user
 from app.auth.service import get_user_by_id, get_user_api_key
+from app.analysis.domain.exceptions import LLMConnectionError
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
+
+logger = __import__("logging").getLogger(__name__)
 
 
 async def _get_user_llm_key(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> str | None:
@@ -33,23 +36,51 @@ async def _get_user_llm_key(user: dict = Depends(get_current_user), db: AsyncSes
 
 
 def _llm_with_key(user_key: str | None = None) -> LLMPort:
-    if settings.LLM_MODE == "inhouse":
+    if settings.LLM_MODE == "inhouse" and (user_key or settings.LLM_API_KEY):
         return VPCLLMAdapter(settings.LLM_ENDPOINT, user_api_key=user_key)
     return MockLLMAdapter()
+
+
+async def _call_with_fallback(llm: LLMPort, method: str, *args, **kwargs):
+    """LLM 호출 실패 시 Mock으로 자동 fallback"""
+    try:
+        return await getattr(llm, method)(*args, **kwargs)
+    except LLMConnectionError:
+        logger.warning("LLM 호출 실패, Mock으로 fallback")
+        mock = MockLLMAdapter()
+        return await getattr(mock, method)(*args, **kwargs)
 
 
 @router.post("/impact", response_model=ImpactAnalysisResponseDTO)
 async def analyze_impact(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
     llm = _llm_with_key(user_key)
-    uc = AnalyzeImpact(llm, get_git_repo())
-    return await uc.execute(req.branch, req.file_paths)
+    git_repo = get_git_repo()
+    diff_text = git_repo.get_full_diff(req.branch)
+    changes = git_repo.get_changed_files(req.branch)
+    file_paths = req.file_paths or [c.path for c in changes]
+    report = await _call_with_fallback(llm, "analyze_impact", diff_text, file_paths)
+    return ImpactAnalysisResponseDTO(
+        risk_level=report.risk_level.value, summary=report.summary,
+        affected_services=report.affected_services, recommendations=report.recommendations,
+    )
 
 
 @router.post("/review", response_model=CodeReviewResponseDTO)
 async def review_code(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
     llm = _llm_with_key(user_key)
-    uc = ReviewCode(llm, get_git_repo())
-    return await uc.execute(req.branch, req.file_paths)
+    git_repo = get_git_repo()
+    diff_text = git_repo.get_full_diff(req.branch)
+    changes = git_repo.get_changed_files(req.branch)
+    file_paths = req.file_paths or [c.path for c in changes]
+    report = await _call_with_fallback(llm, "review_code", diff_text, file_paths)
+    return CodeReviewResponseDTO(
+        summary=report.summary,
+        comments=[CodeReviewCommentDTO(
+            file_path=c.file_path, line=c.line, severity=c.severity,
+            category=c.category, message=c.message, suggested_code=c.suggested_code,
+        ) for c in report.comments],
+        overall_quality=report.overall_quality,
+    )
 
 
 @router.post("/conflicts", response_model=MergeConflictResponseDTO)
@@ -59,7 +90,7 @@ async def check_conflicts(req: ImpactAnalysisRequestDTO, user_key: str | None = 
     if not conflicts:
         return MergeConflictResponseDTO(has_conflicts=False)
 
-    report = await llm.resolve_conflicts(conflicts)
+    report = await _call_with_fallback(llm, "resolve_conflicts", conflicts)
     return MergeConflictResponseDTO(
         has_conflicts=True,
         conflicting_files=report.conflicting_files,
@@ -96,5 +127,10 @@ async def analyze_rca(
     if not build_log:
         raise HTTPException(status_code=400, detail="No build log available")
 
-    uc = AnalyzeFailure(_llm_with_key(user_key))
-    return await uc.execute(build_log)
+    llm = _llm_with_key(user_key)
+    report = await _call_with_fallback(llm, "analyze_failure", build_log)
+    return RCAResponseDTO(
+        root_cause=report.root_cause, affected_files=report.affected_files,
+        suggested_fix=report.suggested_fix, confidence_score=report.confidence_score,
+        ai_fix_prompt=report.ai_fix_prompt,
+    )

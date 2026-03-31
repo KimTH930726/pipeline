@@ -34,7 +34,7 @@ def _get_event_bus() -> InMemoryEventBus:
 
 
 def _build_runner(bus: InMemoryEventBus = Depends(_get_event_bus)) -> BuildProcessRunner:
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if settings.LLM_MODE == "inhouse" else MockLLMAdapter()
+    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if (settings.LLM_MODE == "inhouse" and settings.LLM_API_KEY) else MockLLMAdapter()
     return BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo())
 
 
