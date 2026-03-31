@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
 def _llm() -> LLMPort:
-    if settings.LLM_MODE == "vpc":
+    if settings.LLM_MODE == "inhouse":
         return VPCLLMAdapter(settings.LLM_ENDPOINT)
     return MockLLMAdapter()
 

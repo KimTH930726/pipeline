@@ -34,7 +34,7 @@ def _rollback_uc(
     db: AsyncSession = Depends(get_db),
     bus: InMemoryEventBus = Depends(_get_event_bus),
 ) -> ExecuteRollback:
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if settings.LLM_MODE == "vpc" else MockLLMAdapter()
+    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if settings.LLM_MODE == "inhouse" else MockLLMAdapter()
     return ExecuteRollback(
         git_repo=get_git_repo(),
         deploy_repo=SQLAlchemyDeploymentRepository(db),

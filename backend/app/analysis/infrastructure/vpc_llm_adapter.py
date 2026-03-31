@@ -26,9 +26,14 @@ Python/FastAPI 기반 프로젝트의 배포 파이프라인에서 코드 변경
 
 
 class VPCLLMAdapter(LLMPort):
-    def __init__(self, endpoint: str, timeout: float = 60.0) -> None:
+    def __init__(self, endpoint: str, timeout: float = 120.0) -> None:
         self._endpoint = endpoint
         self._timeout = timeout
+        from app.config import settings
+        self._api_key = settings.LLM_API_KEY
+        self._usecase_code = settings.LLM_USECASE_CODE
+        self._usecase_id = settings.LLM_USECASE_ID
+        self._project_id = settings.LLM_PROJECT_ID
 
     async def analyze_impact(self, diff_text: str, file_list: list[str]) -> ImpactReport:
         # diff가 너무 길면 핵심 변경사항만 추출
@@ -227,25 +232,40 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
         return RCAReport(**data)
 
     async def _call(self, prompt: str) -> str:
+        query = f"{SYSTEM_PROMPT}\n\n{prompt}"
+        payload = {
+            "usecase_code": self._usecase_code,
+            "usecase_id": self._usecase_id,
+            "project_id": self._project_id,
+            "query": query,
+            "response_mode": "blocking",
+        }
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 resp = await client.post(
                     self._endpoint,
-                    json={
-                        "prompt": prompt,
-                        "system": SYSTEM_PROMPT,
-                        "stream": False,
-                    },
+                    json=payload,
+                    headers=headers,
                 )
                 resp.raise_for_status()
-                raw = resp.json().get("response", "{}")
+                data = resp.json()
 
-                # JSON 블록 추출 (마크다운 코드블록 안에 있을 수 있음)
+                # InHouse API 응답: answer 또는 external_response.dify_response.answer
+                raw = (
+                    data.get("answer")
+                    or data.get("external_response", {}).get("dify_response", {}).get("answer")
+                    or "{}"
+                )
                 return self._extract_json(raw)
         except json.JSONDecodeError as exc:
             logger.error("LLM response JSON parse error: %s", exc)
             raise LLMConnectionError(self._endpoint) from exc
         except httpx.HTTPError as exc:
+            logger.error("LLM HTTP error: %s", exc)
             raise LLMConnectionError(self._endpoint) from exc
 
     @staticmethod
