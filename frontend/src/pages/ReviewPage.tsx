@@ -151,7 +151,7 @@ export default function ReviewPage() {
       <Header title="코드 리뷰" subtitle="브랜치별 변경사항 확인 및 AI 분석 / 승인 처리" />
 
       <div className="flex items-center gap-3 mb-6">
-        <BranchSelector selected={branch} onSelect={handleBranchSelect} />
+        <BranchSelector selected={branch} onSelect={handleBranchSelect} excludeMain />
         {branch && (
           <>
             <button

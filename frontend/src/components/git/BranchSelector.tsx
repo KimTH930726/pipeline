@@ -5,18 +5,19 @@ import type { BranchInfo } from '../../types/git';
 interface Props {
   onSelect: (branch: string) => void;
   selected?: string;
+  excludeMain?: boolean;
 }
 
-export default function BranchSelector({ onSelect, selected }: Props) {
+export default function BranchSelector({ onSelect, selected, excludeMain = false }: Props) {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBranches()
-      .then(setBranches)
+      .then((b) => setBranches(excludeMain ? b.filter((x) => x.name !== 'main') : b))
       .catch(() => setBranches([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [excludeMain]);
 
   if (loading) return <div className="text-sm text-gray-500">브랜치 로딩 중...</div>;
 
