@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
 import logging
-from pathlib import Path
 
 from app.config import settings
 
@@ -11,34 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class SandboxProcessManager:
-    """Manages sandbox Docker compose lifecycle using git worktree."""
-
-    @staticmethod
-    async def create_worktree(branch: str, sandbox_id: int) -> str:
-        """Create a git worktree for the branch. Returns worktree path."""
-        worktree_path = f"/tmp/sandbox_{sandbox_id}"
-        try:
-            process = await asyncio.create_subprocess_exec(
-                "git", "-C", settings.REPO_PATH,
-                "worktree", "add", worktree_path, branch,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await process.wait()
-            return worktree_path
-        except Exception:
-            logger.exception("Failed to create worktree for sandbox %s", sandbox_id)
-            raise
+    """Manages sandbox Docker compose lifecycle."""
 
     @staticmethod
     async def start(
-        worktree_path: str,
         project_name: str,
         backend_port: int,
         frontend_port: int,
     ) -> bool:
-        """Start backend + frontend via docker compose with custom ports."""
-        compose_file = f"{worktree_path}/docker-compose.yml"
+        """Start backend + frontend with custom ports using existing images."""
+        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
 
         env_overrides = {
             "BACKEND_PORT": str(backend_port),
@@ -46,9 +26,16 @@ class SandboxProcessManager:
             "CONTAINER_PREFIX": project_name,
         }
 
+        # --no-deps: postgres/redis 새로 만들지 않음
         cmd = (
             f"docker compose -f {compose_file} -p {project_name} "
-            f"up -d backend frontend"
+            f"up -d --no-deps backend frontend"
+        )
+
+        # 생성 후 기존 운영 네트워크에 연결 (DB/Redis 공유)
+        post_cmd = (
+            f"docker network connect smagentlab_default {project_name}-backend 2>/dev/null; "
+            f"docker network connect smagentlab_default {project_name}-frontend 2>/dev/null"
         )
 
         try:
@@ -56,28 +43,33 @@ class SandboxProcessManager:
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env={
-                    **dict(__import__('os').environ),
-                    **env_overrides,
-                },
+                env={**dict(__import__('os').environ), **env_overrides},
             )
             stdout, stderr = await process.communicate()
             if process.returncode != 0:
                 logger.error("Sandbox start failed: %s", stderr.decode())
                 return False
+
+            # 기존 운영 네트워크에 연결
+            net_process = await asyncio.create_subprocess_shell(
+                post_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await net_process.communicate()
             return True
         except Exception:
             logger.exception("Failed to start sandbox %s", project_name)
             return False
 
     @staticmethod
-    async def stop(project_name: str, worktree_path: str) -> None:
+    async def stop(project_name: str) -> None:
         """Stop sandbox containers."""
-        compose_file = f"{worktree_path}/docker-compose.yml"
+        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
         try:
             process = await asyncio.create_subprocess_exec(
                 "docker", "compose", "-f", compose_file, "-p", project_name,
-                "stop",
+                "stop", "backend", "frontend",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -86,11 +78,9 @@ class SandboxProcessManager:
             logger.exception("Failed to stop sandbox %s", project_name)
 
     @staticmethod
-    async def destroy(project_name: str, worktree_path: str) -> None:
-        """Remove sandbox containers, volumes, and worktree."""
-        compose_file = f"{worktree_path}/docker-compose.yml"
-
-        # docker compose down
+    async def destroy(project_name: str) -> None:
+        """Remove sandbox containers and volumes."""
+        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
         try:
             process = await asyncio.create_subprocess_exec(
                 "docker", "compose", "-f", compose_file, "-p", project_name,
@@ -100,20 +90,4 @@ class SandboxProcessManager:
             )
             await process.wait()
         except Exception:
-            logger.exception("Failed to docker compose down for %s", project_name)
-
-        # Remove git worktree
-        try:
-            process = await asyncio.create_subprocess_exec(
-                "git", "-C", settings.REPO_PATH,
-                "worktree", "remove", "--force", worktree_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            await process.wait()
-        except Exception:
-            # Fallback: just delete the directory
-            try:
-                shutil.rmtree(worktree_path, ignore_errors=True)
-            except Exception:
-                pass
+            logger.exception("Failed to destroy sandbox %s", project_name)

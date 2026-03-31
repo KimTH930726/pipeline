@@ -24,20 +24,13 @@ class CreateSandbox:
             frontend_port=frontend_port,
         )
         sandbox = await self._repo.save(sandbox)
-
         asyncio.create_task(self._start(sandbox))
         return self._to_dto(sandbox)
 
     async def _start(self, sandbox: Sandbox) -> None:
         try:
-            worktree_path = await SandboxProcessManager.create_worktree(
-                sandbox.branch, sandbox.id,
-            )
-            sandbox.worktree_path = worktree_path
             sandbox.project_name = f"sandbox-{sandbox.id}"
-
             ok = await SandboxProcessManager.start(
-                worktree_path=worktree_path,
                 project_name=sandbox.project_name,
                 backend_port=sandbox.backend_port,
                 frontend_port=sandbox.frontend_port,
@@ -53,10 +46,8 @@ class CreateSandbox:
     @staticmethod
     def _to_dto(s: Sandbox) -> SandboxResponseDTO:
         return SandboxResponseDTO(
-            id=s.id,
-            branch=s.branch,
-            backend_port=s.backend_port,
-            frontend_port=s.frontend_port,
+            id=s.id, branch=s.branch,
+            backend_port=s.backend_port, frontend_port=s.frontend_port,
             status=s.status.value,
         )
 
@@ -69,15 +60,13 @@ class StopSandbox:
         sandbox = await self._repo.find_by_id(sandbox_id)
         if not sandbox:
             raise SandboxNotFound(sandbox_id)
-        if sandbox.project_name and sandbox.worktree_path:
-            await SandboxProcessManager.stop(sandbox.project_name, sandbox.worktree_path)
+        if sandbox.project_name:
+            await SandboxProcessManager.stop(sandbox.project_name)
         sandbox.mark_stopped()
         await self._repo.update(sandbox)
         return SandboxResponseDTO(
-            id=sandbox.id,
-            branch=sandbox.branch,
-            backend_port=sandbox.backend_port,
-            frontend_port=sandbox.frontend_port,
+            id=sandbox.id, branch=sandbox.branch,
+            backend_port=sandbox.backend_port, frontend_port=sandbox.frontend_port,
             status=sandbox.status.value,
         )
 
@@ -90,8 +79,8 @@ class DestroySandbox:
         sandbox = await self._repo.find_by_id(sandbox_id)
         if not sandbox:
             raise SandboxNotFound(sandbox_id)
-        if sandbox.project_name and sandbox.worktree_path:
-            await SandboxProcessManager.destroy(sandbox.project_name, sandbox.worktree_path)
+        if sandbox.project_name:
+            await SandboxProcessManager.destroy(sandbox.project_name)
         await self._repo.delete(sandbox_id)
 
 
@@ -103,10 +92,8 @@ class ListSandboxes:
         sandboxes = await self._repo.find_all()
         return [
             SandboxResponseDTO(
-                id=s.id,
-                branch=s.branch,
-                backend_port=s.backend_port,
-                frontend_port=s.frontend_port,
+                id=s.id, branch=s.branch,
+                backend_port=s.backend_port, frontend_port=s.frontend_port,
                 status=s.status.value,
             )
             for s in sandboxes
