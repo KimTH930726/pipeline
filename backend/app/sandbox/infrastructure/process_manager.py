@@ -79,15 +79,27 @@ class SandboxProcessManager:
 
     @staticmethod
     async def destroy(project_name: str) -> None:
-        """Remove sandbox containers and volumes."""
-        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
+        """Remove sandbox containers only (DB/볼륨 보호)."""
+        # stop + rm으로 컨테이너만 제거 (down -v 사용 안 함 — 운영 볼륨 보호)
+        for suffix in ["backend", "frontend"]:
+            container = f"{project_name}-{suffix}"
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "docker", "rm", "-f", container,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                await process.wait()
+            except Exception:
+                pass
+
+        # 샌드박스 전용 네트워크 정리
         try:
             process = await asyncio.create_subprocess_exec(
-                "docker", "compose", "-f", compose_file, "-p", project_name,
-                "down", "--remove-orphans", "-v",
+                "docker", "network", "rm", f"{project_name}_default",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             await process.wait()
         except Exception:
-            logger.exception("Failed to destroy sandbox %s", project_name)
+            pass
