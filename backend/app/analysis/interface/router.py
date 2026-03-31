@@ -23,8 +23,6 @@ from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.auth.dependencies import get_current_user
 from app.auth.service import get_user_by_id, get_user_api_key
-from app.analysis.domain.exceptions import LLMConnectionError
-
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 logger = __import__("logging").getLogger(__name__)

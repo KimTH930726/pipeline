@@ -29,10 +29,12 @@ class Settings(BaseSettings):
     # === 배포 대상 설정 ===
     # DEPLOY_TARGET_PATH: 배포 대상 프로젝트의 docker-compose.yml이 있는 경로
     # 예: /home/deploy/SMAgentLab 또는 D:/projects/SMAgentLab
+    # DEPLOY_TARGET_PATH: 호스트 절대 경로 (볼륨 마운트, docker compose 실행 시 사용)
     DEPLOY_TARGET_PATH: str = ""
+    # DEPLOY_COMPOSE_PATH: 컨테이너 내부 경로 (compose 파일 읽기용)
+    DEPLOY_COMPOSE_PATH: str = "/deploy-target"
     DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
     DEPLOY_SERVICE_NAME: str = "backend frontend"
-    # DEPLOY_MODE: build (인터넷 환경) / restart (폐쇄망 - 소스 볼륨 마운트)
     DEPLOY_MODE: str = "restart"
 
     class Config:

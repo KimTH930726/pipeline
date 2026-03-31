@@ -5,6 +5,7 @@ services:
       - "${PORTAL_PORT:-8080}:8000"
     volumes:
       - ${REPO_HOST_PATH:-./data/repo}:/repo
+      - ${DEPLOY_TARGET_PATH:-./data/repo}:/deploy-target
       - db-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     environment:

@@ -108,7 +108,9 @@ vi .env
 REPO_HOST_PATH=/srv/repos/SMAgentLab.git
 
 # 배포 대상 프로젝트 호스트 경로
-# - docker compose restart가 실행되는 위치
+# - 이 경로가 2가지 용도로 사용됨:
+#   1) docker-compose.yml에서 /deploy-target으로 볼륨 마운트 (소스 읽기)
+#   2) docker compose restart 실행 시 compose 파일 위치
 # - 주의: 반드시 호스트 절대 경로 (컨테이너 내부 경로 X)
 # - 이유: Pipeline 컨테이너가 docker.sock으로 호스트 Docker를 제어하므로
 #         compose 파일의 볼륨 마운트가 호스트 기준으로 해석됨

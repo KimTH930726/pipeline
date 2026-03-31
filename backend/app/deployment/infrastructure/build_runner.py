@@ -114,13 +114,13 @@ class BuildProcessRunner:
                 ["python3", "-c", self._simulation_build_script(branch)],
             )
 
-        compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
+        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
         if deploy_mode == "restart":
             await self._log(dep_id_str, full_log, "[BUILD] 폐쇄망 모드 - 소스 검증 중...")
-            cmd = ["python3", "-c", self._syntax_check_script(target_path)]
+            cmd = ["python3", "-c", self._syntax_check_script(settings.DEPLOY_COMPOSE_PATH)]
             return await self._run_subprocess(dep_id_str, full_log, cmd)
         else:
             cmd = ["docker", "compose", "-f", compose_file, "build"] + services
@@ -136,7 +136,7 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
-        compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
+        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 

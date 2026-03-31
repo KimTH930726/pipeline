@@ -18,7 +18,7 @@ class SandboxProcessManager:
         frontend_port: int,
     ) -> bool:
         """Start backend + frontend with custom ports using existing images."""
-        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
+        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
 
         env_overrides = {
             "BACKEND_PORT": str(backend_port),
@@ -65,7 +65,7 @@ class SandboxProcessManager:
     @staticmethod
     async def stop(project_name: str) -> None:
         """Stop sandbox containers."""
-        compose_file = f"{settings.DEPLOY_TARGET_PATH}/docker-compose.yml"
+        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
         try:
             process = await asyncio.create_subprocess_exec(
                 "docker", "compose", "-f", compose_file, "-p", project_name,
