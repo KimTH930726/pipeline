@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User, Users } from 'lucide-react';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
@@ -29,7 +29,7 @@ export default function Sidebar() {
         <p className="text-xs text-gray-500">StarbucksCSP</p>
       </div>
       <nav className="flex-1 p-2">
-        {links.map(({ to, icon: Icon, label }) => (
+        {(user?.role === 'admin' ? [...links, { to: '/admin', icon: Users, label: '사용자 관리' }] : links).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

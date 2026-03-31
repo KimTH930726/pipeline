@@ -8,6 +8,7 @@ import DeployPage from './pages/DeployPage';
 import SandboxPage from './pages/SandboxPage';
 import AuditPage from './pages/AuditPage';
 import BranchPage from './pages/BranchPage';
+import AdminPage from './pages/AdminPage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/deploy" element={<DeployPage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
           <Route path="/audit" element={<AuditPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
