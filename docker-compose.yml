@@ -15,7 +15,8 @@ services:
       - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
       - FERNET_SECRET_KEY=${FERNET_SECRET_KEY:-}
       - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
-      - DEPLOY_TARGET_PATH=/deploy-target
+      # 호스트 절대 경로 사용 (Docker 소켓 공유라 호스트 기준으로 실행됨)
+      - DEPLOY_TARGET_PATH=D:/personalPJT/SMAgentLab
       - DEPLOY_COMPOSE_FILE=docker-compose.yml
       - DEPLOY_SERVICE_NAME=backend
       - DEPLOY_MODE=restart
