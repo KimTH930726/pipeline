@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { GitMerge, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import Header from '../components/layout/Header';
 import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
@@ -10,9 +11,12 @@ export default function DashboardPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     fetchRecentDeploys(1, 20).then((r) => setDeploys(r.items)).catch(() => {});
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  useAutoRefresh(loadData);
 
   const successCount = deploys.filter((d) => d.status === 'SUCCESS').length;
   const failCount = deploys.filter((d) => d.status === 'FAILED').length;

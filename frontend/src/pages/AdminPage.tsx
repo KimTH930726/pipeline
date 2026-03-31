@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { UserCheck, UserX, Shield, Key } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { listUsers, registerUser, updateApiKey, type UserInfo } from '../api/authApi';
@@ -19,12 +20,13 @@ export default function AdminPage() {
   const [myApiKey, setMyApiKey] = useState('');
   const [keyMsg, setKeyMsg] = useState('');
 
-  const loadUsers = () => {
+  const loadUsers = useCallback(() => {
     setLoading(true);
     listUsers().then(setUsers).catch(() => {}).finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useAutoRefresh(loadUsers);
 
   const handleActivate = async (userId: number) => {
     await client.put(`/auth/users/${userId}/activate`);

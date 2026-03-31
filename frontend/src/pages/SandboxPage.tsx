@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { Box, Trash2, ExternalLink, Square, RefreshCw } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { fetchBranches } from '../api/gitApi';
@@ -19,16 +20,17 @@ export default function SandboxPage() {
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([]);
   const [creating, setCreating] = useState(false);
 
+  const loadData = useCallback(() => {
+    client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
+    fetchBranches().then((b) => setBranches(b.filter((x) => x.name !== 'main'))).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  useAutoRefresh(loadData);
+
   const loadSandboxes = () => {
     client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
   };
-
-  useEffect(() => {
-    loadSandboxes();
-    fetchBranches()
-      .then((b) => setBranches(b.filter((x) => x.name !== 'main')))
-      .catch(() => {});
-  }, []);
 
   const handleCreate = async () => {
     if (!branch) return;

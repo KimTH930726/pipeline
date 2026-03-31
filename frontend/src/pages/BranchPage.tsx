@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import Header from '../components/layout/Header';
 import { fetchBranches, createBranch, deleteBranch } from '../api/gitApi';
 import type { BranchInfo } from '../types/git';
@@ -13,17 +14,16 @@ export default function BranchPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const loadBranches = () => {
+  const loadBranches = useCallback(() => {
     setLoading(true);
     fetchBranches()
       .then(setBranches)
       .catch(() => setBranches([]))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadBranches();
   }, []);
+
+  useEffect(() => { loadBranches(); }, [loadBranches]);
+  useAutoRefresh(loadBranches);
 
   const handleCreate = async () => {
     if (!newName.trim() || !baseBranch) return;

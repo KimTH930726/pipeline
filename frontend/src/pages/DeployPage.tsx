@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import Header from '../components/layout/Header';
 import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
 import BuildLogStream from '../components/deploy/BuildLogStream';
@@ -55,15 +56,16 @@ export default function DeployPage() {
     fetchRecentDeploys(page, pageSize).then(setDeployPage).catch(() => {});
   };
 
-  const reload = () => {
+  const reload = useCallback(() => {
     listApprovedReviews()
       .then(setApprovedBranches)
       .catch(() => setApprovedBranches([]))
       .finally(() => setLoadingApproved(false));
     loadDeploys(currentPage);
-  };
+  }, [currentPage]);
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, [reload]);
+  useAutoRefresh(reload);
 
   const handleBranchSelect = async (branch: string) => {
     setSelectedBranch(branch);
