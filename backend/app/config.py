@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     SANDBOX_PORT_MAX: int = 9199
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    # === 인증 설정 ===
+    JWT_SECRET_KEY: str = "change-this-secret-key-in-production"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    FERNET_SECRET_KEY: str = ""
+    ADMIN_DEFAULT_PASSWORD: str = "admin1234"
+
     # === 배포 대상 설정 ===
     # DEPLOY_TARGET_PATH: 배포 대상 프로젝트의 docker-compose.yml이 있는 경로
     # 예: /home/deploy/SMAgentLab 또는 D:/projects/SMAgentLab

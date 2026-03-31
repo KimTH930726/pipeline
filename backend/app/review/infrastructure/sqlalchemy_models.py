@@ -12,4 +12,5 @@ class ReviewModel(Base):
     status = Column(String, nullable=False, default="PENDING")
     comment = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
+    acted_by = Column(String(100), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)

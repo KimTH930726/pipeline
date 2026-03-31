@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.shared.infrastructure.database import get_db
+from app.auth.dependencies import get_current_user
 from app.review.application.dtos import ReviewRequestDTO, ReviewResponseDTO
 from app.review.application.use_cases import (
     RequestReview, ApproveReview, RejectReview,
@@ -24,12 +25,12 @@ async def request_review(body: ReviewRequestDTO, repo=Depends(_repo)):
 
 
 @router.post("/approve", response_model=ReviewResponseDTO)
-async def approve(body: ReviewRequestDTO, repo=Depends(_repo)):
+async def approve(body: ReviewRequestDTO, repo=Depends(_repo), user: dict = Depends(get_current_user)):
     return await ApproveReview(repo).execute(body.branch, body.comment)
 
 
 @router.post("/reject", response_model=ReviewResponseDTO)
-async def reject(body: ReviewRequestDTO, repo=Depends(_repo)):
+async def reject(body: ReviewRequestDTO, repo=Depends(_repo), user: dict = Depends(get_current_user)):
     return await RejectReview(repo).execute(body.branch, body.comment)
 
 

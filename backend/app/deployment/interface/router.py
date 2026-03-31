@@ -15,6 +15,7 @@ from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
+from app.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/deploy", tags=["deploy"])
 
@@ -61,6 +62,7 @@ async def trigger_deploy(
     req: DeployRequestDTO,
     uc: TriggerDeploy = Depends(_trigger_uc),
     db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
 ):
     review = await SQLAlchemyReviewRepository(db).find_by_branch(req.branch)
     if not review or not review.is_approved:

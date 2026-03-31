@@ -15,6 +15,7 @@ class DeploymentORM(Base):
     build_log = Column(Text, nullable=True)
     error_log = Column(Text, nullable=True)
     commit_messages = Column(Text, nullable=True)
+    acted_by = Column(String(100), nullable=True)
     rolled_back = Column(Integer, default=0)
     started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)

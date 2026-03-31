@@ -22,6 +22,7 @@ from app.rollback.interface.router import router as rollback_router
 from app.sandbox.interface.router import router as sandbox_router
 from app.audit.interface.router import router as audit_router
 from app.review.interface.router import router as review_router
+from app.auth.router import router as auth_router
 
 from app.deployment.interface import router as deploy_module
 from app.rollback.interface import router as rollback_module
@@ -31,6 +32,15 @@ from app.shared.infrastructure.database import SessionFactory
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    # Create default admin user
+    from app.auth.service import create_user, get_user_by_id
+    from sqlalchemy import select
+    from app.auth.models import UserModel
+    async with SessionFactory() as db:
+        result = await db.execute(select(UserModel).where(UserModel.username == "admin"))
+        if not result.scalar_one_or_none():
+            await create_user(db, "admin", settings.ADMIN_DEFAULT_PASSWORD, "admin")
 
     # Wire domain event bus
     event_bus = InMemoryEventBus()
@@ -69,6 +79,7 @@ app.include_router(rollback_router)
 app.include_router(sandbox_router)
 app.include_router(audit_router)
 app.include_router(review_router)
+app.include_router(auth_router)
 
 
 @app.get("/api/health")
