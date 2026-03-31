@@ -113,15 +113,29 @@ export default function SandboxPage() {
 
       <div className="grid grid-cols-2 gap-4">
         {sandboxes.map((s) => (
-          <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-5">
+          <div key={s.id} className={`bg-white border rounded-xl p-5 ${s.status === 'CREATING' ? 'border-yellow-300' : 'border-gray-200'}`}>
+            {s.status === 'CREATING' && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="animate-spin h-4 w-4 border-2 border-yellow-500 border-t-transparent rounded-full" />
+                  <span className="text-sm font-medium text-yellow-700">샌드박스 생성 중...</span>
+                </div>
+                <div className="text-xs text-gray-500 mb-2">브랜치 소스 추출 → 컨테이너 기동 → 헬스체크</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div className="bg-yellow-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Box size={18} className="text-green-600" />
+                <Box size={18} className={s.status === 'RUNNING' ? 'text-green-600' : s.status === 'ERROR' ? 'text-red-500' : 'text-yellow-500'} />
                 <span className="font-mono text-sm font-medium">{s.branch}</span>
               </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusStyle(s.status)}`}>
-                {statusLabel[s.status] || s.status}
-              </span>
+              {s.status !== 'CREATING' && (
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusStyle(s.status)}`}>
+                  {statusLabel[s.status] || s.status}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
