@@ -40,17 +40,15 @@ class SandboxProcessManager:
         """Start backend + frontend via docker compose with custom ports."""
         compose_file = f"{worktree_path}/docker-compose.yml"
 
-        # docker compose up with port overrides
-        # Uses environment variable override for ports
         env_overrides = {
             "BACKEND_PORT": str(backend_port),
             "FRONTEND_PORT": str(frontend_port),
+            "CONTAINER_PREFIX": project_name,
         }
-        env_str = " ".join(f"{k}={v}" for k, v in env_overrides.items())
 
         cmd = (
             f"docker compose -f {compose_file} -p {project_name} "
-            f"up -d --build backend frontend"
+            f"up -d backend frontend"
         )
 
         try:
