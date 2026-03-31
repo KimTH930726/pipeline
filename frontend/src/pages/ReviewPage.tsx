@@ -6,7 +6,7 @@ import BranchSelector from '../components/git/BranchSelector';
 import ChangedFileList from '../components/git/ChangedFileList';
 import DiffViewer from '../components/git/DiffViewer';
 import ImpactAnalysisPanel from '../components/git/ImpactAnalysisPanel';
-import { fetchChangedFiles, fetchDiff, analyzeImpact, reviewCode } from '../api/gitApi';
+import { fetchChangedFiles, fetchDiff, analyzeImpact, reviewCode, fetchCommitMessages } from '../api/gitApi';
 import type { CodeReviewResponse } from '../api/gitApi';
 import { getReviewStatus, approveReview, rejectReview, type ReviewResponse } from '../api/reviewApi';
 import type { FileChange, ImpactAnalysisResponse } from '../types/git';
@@ -23,6 +23,8 @@ export default function ReviewPage() {
   const [codeReview, setCodeReview] = useState<CodeReviewResponse | null>(null);
   const [reviewing, setReviewing] = useState(false);
 
+  const [commitMessages, setCommitMessages] = useState<string[]>([]);
+
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [comment, setComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -35,14 +37,17 @@ export default function ReviewPage() {
     setCodeReview(null);
     setReview(null);
     setComment('');
+    setCommitMessages([]);
     if (!b) { setFiles([]); return; }
     try {
-      const [changed, reviewStatus] = await Promise.all([
+      const [changed, reviewStatus, commits] = await Promise.all([
         fetchChangedFiles(b),
         getReviewStatus(b).catch(() => null),
+        fetchCommitMessages(b).catch(() => ({ commits: [] })),
       ]);
       setFiles(changed);
       setReview(reviewStatus);
+      setCommitMessages(commits.commits || []);
     } catch {
       setFiles([]);
     }
@@ -236,17 +241,17 @@ export default function ReviewPage() {
             </div>
             <button
               onClick={handleApprove}
-              disabled={reviewLoading}
+              disabled={reviewLoading || review?.status === 'APPROVED'}
               className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
-              {reviewLoading ? '처리 중...' : '승인'}
+              {review?.status === 'APPROVED' ? '승인됨' : reviewLoading ? '처리 중...' : '승인'}
             </button>
             <button
               onClick={handleReject}
-              disabled={reviewLoading}
+              disabled={reviewLoading || review?.status === 'REJECTED'}
               className="px-5 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
             >
-              반려
+              {review?.status === 'REJECTED' ? '반려됨' : '반려'}
             </button>
           </div>
           {review?.comment && (
@@ -254,6 +259,21 @@ export default function ReviewPage() {
               마지막 코멘트: {review.comment}
             </p>
           )}
+        </div>
+      )}
+
+      {/* 커밋 메시지 */}
+      {commitMessages.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">커밋 내역 ({commitMessages.length}건)</h3>
+          <div className="space-y-1">
+            {commitMessages.map((msg, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-gray-400 mt-0.5">&bull;</span>
+                <span className="text-gray-700 font-mono text-xs">{msg}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

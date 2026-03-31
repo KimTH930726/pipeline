@@ -42,6 +42,12 @@ async def delete_branch(branch: str, repo=Depends(_git_repo)):
     await _run_sync(DeleteBranch(repo).execute, branch)
 
 
+@router.get("/branches/commits")
+async def get_commit_messages(branch: str, repo=Depends(_git_repo)):
+    messages = await _run_sync(repo.get_commit_messages, branch)
+    return {"branch": branch, "commits": messages}
+
+
 @router.get("/diff", response_model=DiffResponseDTO)
 async def get_diff(branch: str, path: str, repo=Depends(_git_repo)):
     return await _run_sync(GetDiff(repo).execute, branch, path)

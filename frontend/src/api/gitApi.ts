@@ -10,6 +10,9 @@ export const fetchChangedFiles = (branch: string) =>
 export const fetchDiff = (branch: string, path: string) =>
   client.get<DiffResponse>('/git/diff', { params: { branch, path } }).then(r => r.data);
 
+export const fetchCommitMessages = (branch: string) =>
+  client.get<{ branch: string; commits: string[] }>('/git/branches/commits', { params: { branch } }).then(r => r.data);
+
 export const analyzeImpact = (branch: string, file_paths?: string[]) =>
   client.post<ImpactAnalysisResponse>('/analysis/impact', { branch, file_paths }).then(r => r.data);
 
