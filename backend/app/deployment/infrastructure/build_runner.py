@@ -103,11 +103,10 @@ class BuildProcessRunner:
             })
 
     async def _run_branch_build(self, dep_id_str: str, full_log: list[str], branch: str) -> bool:
-        """브랜치의 코드를 검증 빌드 (docker compose build --dry-run 또는 syntax check)"""
+        """브랜치 코드 검증"""
         target_path = settings.DEPLOY_TARGET_PATH
 
         if not target_path:
-            # DEPLOY_TARGET_PATH 미설정 시 시뮬레이션 빌드
             await self._log(dep_id_str, full_log,
                             "[BUILD] DEPLOY_TARGET_PATH 미설정 - 시뮬레이션 빌드 실행")
             return await self._run_subprocess(
@@ -115,17 +114,26 @@ class BuildProcessRunner:
                 ["python3", "-c", self._simulation_build_script(branch)],
             )
 
-        # 실제 빌드: 대상 경로에서 docker compose build
-        compose_file = settings.DEPLOY_COMPOSE_FILE
+        compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
         service = settings.DEPLOY_SERVICE_NAME
-        cmd = ["docker", "compose", "-f", f"{target_path}/{compose_file}", "build"]
-        if service:
-            cmd.append(service)
-        await self._log(dep_id_str, full_log, f"[BUILD] 실행: {' '.join(cmd)}")
-        return await self._run_subprocess(dep_id_str, full_log, cmd)
+        deploy_mode = settings.DEPLOY_MODE
+
+        if deploy_mode == "restart":
+            # 폐쇄망: 소스 볼륨 마운트 방식 — 빌드 불필요, 구문 체크만
+            await self._log(dep_id_str, full_log, "[BUILD] 폐쇄망 모드 - 소스 검증 중...")
+            # Python 구문 체크
+            cmd = ["python3", "-c", self._syntax_check_script(target_path)]
+            return await self._run_subprocess(dep_id_str, full_log, cmd)
+        else:
+            # 인터넷 환경: docker compose build
+            cmd = ["docker", "compose", "-f", compose_file, "build"]
+            if service:
+                cmd.append(service)
+            await self._log(dep_id_str, full_log, f"[BUILD] 실행: {' '.join(cmd)}")
+            return await self._run_subprocess(dep_id_str, full_log, cmd)
 
     async def _run_docker_deploy(self, dep_id_str: str, full_log: list[str]) -> bool:
-        """Docker 재빌드 및 무중단 재기동"""
+        """Docker 재기동"""
         target_path = settings.DEPLOY_TARGET_PATH
 
         if not target_path:
@@ -133,15 +141,24 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
-        compose_file = settings.DEPLOY_COMPOSE_FILE
+        compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
         service = settings.DEPLOY_SERVICE_NAME
+        deploy_mode = settings.DEPLOY_MODE
 
-        # docker compose up -d --build (무중단: 새 컨테이너 준비 후 교체)
-        cmd = ["docker", "compose", "-f", f"{target_path}/{compose_file}",
-               "up", "-d", "--build", "--remove-orphans"]
-        if service:
-            cmd.append(service)
-        await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
+        if deploy_mode == "restart":
+            # 폐쇄망: 소스 볼륨이 이미 마운트됨 → restart만
+            cmd = ["docker", "compose", "-f", compose_file, "restart"]
+            if service:
+                cmd.append(service)
+            await self._log(dep_id_str, full_log, f"[DEPLOY] 폐쇄망 모드 - 재기동: {' '.join(cmd)}")
+        else:
+            # 인터넷: 재빌드 + 재기동
+            cmd = ["docker", "compose", "-f", compose_file,
+                   "up", "-d", "--build", "--remove-orphans"]
+            if service:
+                cmd.append(service)
+            await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
+
         return await self._run_subprocess(dep_id_str, full_log, cmd)
 
     async def _run_subprocess(
@@ -233,4 +250,34 @@ time.sleep(1)
 print("[BUILD] Running tests...")
 time.sleep(1)
 print("[BUILD] Build successful!")
+"""
+
+    @staticmethod
+    def _syntax_check_script(target_path: str) -> str:
+        return f"""
+import sys, os, py_compile
+
+src_dir = os.path.join("{target_path}", "backend")
+errors = []
+checked = 0
+
+for root, dirs, files in os.walk(src_dir):
+    for f in files:
+        if f.endswith(".py"):
+            path = os.path.join(root, f)
+            checked += 1
+            try:
+                py_compile.compile(path, doraise=True)
+            except py_compile.PyCompileError as e:
+                errors.append(str(e))
+
+print(f"[BUILD] Python 구문 검사: {{checked}}개 파일 검사")
+if errors:
+    for e in errors:
+        print(f"[ERROR] {{e}}", file=sys.stderr)
+    print(f"[BUILD] {{len(errors)}}개 구문 오류 발견", file=sys.stderr)
+    sys.exit(1)
+else:
+    print("[BUILD] 구문 오류 없음")
+    print("[BUILD] Build successful!")
 """

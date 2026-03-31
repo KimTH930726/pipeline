@@ -43,7 +43,8 @@ services:
       # 아래 주석을 해제하고 실제 경로를 설정하세요:
       # - DEPLOY_TARGET_PATH=/deploy-target
       # - DEPLOY_COMPOSE_FILE=docker-compose.yml
-      # - DEPLOY_SERVICE_NAME=
+      # - DEPLOY_SERVICE_NAME=backend
+      # - DEPLOY_MODE=restart  (폐쇄망: restart / 인터넷: build)
 
   frontend:
     build: ./frontend
