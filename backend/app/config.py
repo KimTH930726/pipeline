@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # 예: /home/deploy/SMAgentLab 또는 D:/projects/SMAgentLab
     DEPLOY_TARGET_PATH: str = ""
     DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
-    DEPLOY_SERVICE_NAME: str = ""
+    DEPLOY_SERVICE_NAME: str = "backend frontend"
     # DEPLOY_MODE: build (인터넷 환경) / restart (폐쇄망 - 소스 볼륨 마운트)
     DEPLOY_MODE: str = "restart"
 

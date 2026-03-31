@@ -115,20 +115,15 @@ class BuildProcessRunner:
             )
 
         compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
-        service = settings.DEPLOY_SERVICE_NAME
+        services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
         if deploy_mode == "restart":
-            # 폐쇄망: 소스 볼륨 마운트 방식 — 빌드 불필요, 구문 체크만
             await self._log(dep_id_str, full_log, "[BUILD] 폐쇄망 모드 - 소스 검증 중...")
-            # Python 구문 체크
             cmd = ["python3", "-c", self._syntax_check_script(target_path)]
             return await self._run_subprocess(dep_id_str, full_log, cmd)
         else:
-            # 인터넷 환경: docker compose build
-            cmd = ["docker", "compose", "-f", compose_file, "build"]
-            if service:
-                cmd.append(service)
+            cmd = ["docker", "compose", "-f", compose_file, "build"] + services
             await self._log(dep_id_str, full_log, f"[BUILD] 실행: {' '.join(cmd)}")
             return await self._run_subprocess(dep_id_str, full_log, cmd)
 
@@ -142,21 +137,15 @@ class BuildProcessRunner:
             return True
 
         compose_file = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
-        service = settings.DEPLOY_SERVICE_NAME
+        services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
         if deploy_mode == "restart":
-            # 폐쇄망: 소스 볼륨이 이미 마운트됨 → restart만
-            cmd = ["docker", "compose", "-f", compose_file, "restart"]
-            if service:
-                cmd.append(service)
+            cmd = ["docker", "compose", "-f", compose_file, "restart"] + services
             await self._log(dep_id_str, full_log, f"[DEPLOY] 폐쇄망 모드 - 재기동: {' '.join(cmd)}")
         else:
-            # 인터넷: 재빌드 + 재기동
             cmd = ["docker", "compose", "-f", compose_file,
-                   "up", "-d", "--build", "--remove-orphans"]
-            if service:
-                cmd.append(service)
+                   "up", "-d", "--build", "--remove-orphans"] + services
             await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
 
         return await self._run_subprocess(dep_id_str, full_log, cmd)
