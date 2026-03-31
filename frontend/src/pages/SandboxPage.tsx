@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
-import { Box, Trash2, ExternalLink, Square, RefreshCw } from 'lucide-react';
+import { Box, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { fetchBranches } from '../api/gitApi';
 import type { BranchInfo } from '../types/git';
@@ -52,10 +52,7 @@ export default function SandboxPage() {
     }
   };
 
-  const handleStop = async (id: number) => {
-    await client.post(`/sandbox/${id}/stop`);
-    loadData();
-  };
+
 
   const handleDestroy = async (id: number) => {
     if (!confirm('샌드박스를 삭제하시겠습니까? 컨테이너와 임시 파일이 모두 제거됩니다.')) return;
@@ -177,14 +174,6 @@ export default function SandboxPage() {
             )}
 
             <div className="flex items-center gap-2 border-t pt-3">
-              {s.status === 'RUNNING' && (
-                <button
-                  onClick={() => handleStop(s.id)}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 text-orange-600 hover:bg-orange-50 rounded border border-orange-200"
-                >
-                  <Square size={12} /> 중지
-                </button>
-              )}
               <button
                 onClick={() => handleDestroy(s.id)}
                 className="flex items-center gap-1 text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 rounded border border-red-200 ml-auto"
