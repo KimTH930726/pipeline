@@ -10,6 +10,7 @@ import AuditPage from './pages/AuditPage';
 import BranchPage from './pages/BranchPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
+import GuidePage from './pages/GuidePage';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/guide" element={<GuidePage />} />
         </Route>
       </Routes>
     </BrowserRouter>

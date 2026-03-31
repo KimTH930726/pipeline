@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, GitBranch, GitPullRequest, Play, Box, ClipboardList, LogOut, User, Users, Settings, BookOpen } from 'lucide-react';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
@@ -8,6 +8,7 @@ const links = [
   { to: '/deploy', icon: Play, label: '배포' },
   { to: '/sandbox', icon: Box, label: '샌드박스' },
   { to: '/audit', icon: ClipboardList, label: '감사 로그' },
+  { to: '/guide', icon: BookOpen, label: '시작 가이드' },
 ];
 
 export default function Sidebar() {
