@@ -94,7 +94,7 @@ class SandboxProcessManager:
         try:
             process = await asyncio.create_subprocess_exec(
                 "docker", "compose", "-f", compose_file, "-p", project_name,
-                "down", "--remove-orphans", "-v", "--rmi", "local",
+                "down", "--remove-orphans", "-v",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
