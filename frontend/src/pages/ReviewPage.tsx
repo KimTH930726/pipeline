@@ -22,6 +22,7 @@ export default function ReviewPage() {
 
   const [codeReview, setCodeReview] = useState<CodeReviewResponse | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   const [commitMessages, setCommitMessages] = useState<string[]>([]);
 
@@ -66,11 +67,13 @@ export default function ReviewPage() {
   const handleAnalyze = async () => {
     if (!branch) return;
     setAnalyzing(true);
+    setAiError('');
     try {
       const result = await analyzeImpact(branch);
       setAnalysis(result);
-    } catch {
+    } catch (e: any) {
       setAnalysis(null);
+      setAiError(e.response?.data?.detail || 'AI 영향도 분석 실패');
     } finally {
       setAnalyzing(false);
     }
@@ -79,11 +82,13 @@ export default function ReviewPage() {
   const handleCodeReview = async () => {
     if (!branch) return;
     setReviewing(true);
+    setAiError('');
     try {
       const result = await reviewCode(branch);
       setCodeReview(result);
-    } catch {
+    } catch (e: any) {
       setCodeReview(null);
+      setAiError(e.response?.data?.detail || 'AI 코드 리뷰 실패');
     } finally {
       setReviewing(false);
     }
@@ -161,25 +166,41 @@ export default function ReviewPage() {
           <>
             <button
               onClick={handleAnalyze}
-              disabled={analyzing || files.length === 0}
+              disabled={analyzing || files.length === 0 || !!analysis}
               className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
-              title={files.length === 0 ? '변경된 파일이 없습니다' : ''}
+              title={files.length === 0 ? '변경된 파일이 없습니다' : analysis ? '분석 완료' : ''}
             >
-              <Shield size={14} />
-              {analyzing ? '분석 중...' : 'AI 영향도 분석'}
+              {analyzing ? <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : <Shield size={14} />}
+              {analyzing ? '분석 중...' : analysis ? '분석 완료' : 'AI 영향도 분석'}
             </button>
             <button
               onClick={handleCodeReview}
-              disabled={reviewing || files.length === 0}
+              disabled={reviewing || files.length === 0 || !!codeReview}
               className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
             >
-              <Search size={14} />
-              {reviewing ? '리뷰 중...' : 'AI 코드 리뷰'}
+              {reviewing ? <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : <Search size={14} />}
+              {reviewing ? '리뷰 중...' : codeReview ? '리뷰 완료' : 'AI 코드 리뷰'}
             </button>
           </>
         )}
         {review && statusBadge(review.status)}
       </div>
+
+      {/* AI 에러 메시지 */}
+      {aiError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <p className="text-sm text-red-700">{aiError}</p>
+          <button onClick={() => setAiError('')} className="text-xs text-red-400 hover:text-red-600">닫기</button>
+        </div>
+      )}
+
+      {/* AI 분석 로딩 */}
+      {(analyzing || reviewing) && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+          <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+          <span className="text-sm text-gray-600">{analyzing ? 'AI 영향도 분석 중...' : 'AI 코드 리뷰 중...'} LLM 응답을 기다리고 있습니다.</span>
+        </div>
+      )}
 
       {/* AI 영향도 분석 결과 */}
       {analysis && (
