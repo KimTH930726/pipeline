@@ -9,6 +9,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+    llm_api_key: str = ""
+
+
 class RegisterRequest(BaseModel):
     username: str
     password: str

@@ -13,11 +13,9 @@ services:
     environment:
       - REPO_PATH=/repo
       - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
-      - LLM_MODE=mock
-      # LLM_MODE=inhouse 로 변경하면 실제 AI 분석 활성화
-      # - LLM_MODE=inhouse
-      # - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
-      # - LLM_API_KEY=your-api-key-here
+      - LLM_MODE=inhouse
+      - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
+      - FERNET_SECRET_KEY=yw04wh9Y8cnVfl92A1v6ou3V23XbtDNFe1mKrEtEkP8=
       - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
       # ─── 배포 대상 설정 가이드 ───
       #

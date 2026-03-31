@@ -11,6 +11,37 @@ from app.shared.infrastructure.security import (
 )
 
 
+async def signup_user(db: AsyncSession, username: str, password: str, llm_api_key: str = "") -> UserModel:
+    """셀프 회원가입 — is_active=False (관리자 승인 필요)"""
+    encrypted_key = None
+    if llm_api_key:
+        try:
+            encrypted_key = encrypt_api_key(llm_api_key)
+        except ValueError:
+            pass  # FERNET_SECRET_KEY 미설정 시 API Key 저장 스킵
+    user = UserModel(
+        username=username,
+        hashed_password=hash_password(password),
+        role="user",
+        is_active=False,
+        encrypted_llm_api_key=encrypted_key,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def activate_user(db: AsyncSession, user_id: int, active: bool = True) -> UserModel | None:
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        return None
+    user.is_active = active
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 async def create_user(db: AsyncSession, username: str, password: str, role: str = "user") -> UserModel:
     user = UserModel(
         username=username,

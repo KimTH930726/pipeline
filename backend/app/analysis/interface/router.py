@@ -21,40 +21,40 @@ from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.analysis.domain.ports import LLMPort
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
+from app.auth.dependencies import get_current_user
+from app.auth.service import get_user_by_id, get_user_api_key
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 
-def _llm() -> LLMPort:
+async def _get_user_llm_key(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> str | None:
+    u = await get_user_by_id(db, user["id"])
+    return get_user_api_key(u) if u else None
+
+
+def _llm_with_key(user_key: str | None = None) -> LLMPort:
     if settings.LLM_MODE == "inhouse":
-        return VPCLLMAdapter(settings.LLM_ENDPOINT)
+        return VPCLLMAdapter(settings.LLM_ENDPOINT, user_api_key=user_key)
     return MockLLMAdapter()
 
 
-def _impact_uc(llm: LLMPort = Depends(_llm)) -> AnalyzeImpact:
-    return AnalyzeImpact(llm, get_git_repo())
-
-
-def _review_uc(llm: LLMPort = Depends(_llm)) -> ReviewCode:
-    return ReviewCode(llm, get_git_repo())
-
-
-def _failure_uc(llm: LLMPort = Depends(_llm)) -> AnalyzeFailure:
-    return AnalyzeFailure(llm)
-
-
 @router.post("/impact", response_model=ImpactAnalysisResponseDTO)
-async def analyze_impact(req: ImpactAnalysisRequestDTO, uc: AnalyzeImpact = Depends(_impact_uc)):
+async def analyze_impact(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
+    llm = _llm_with_key(user_key)
+    uc = AnalyzeImpact(llm, get_git_repo())
     return await uc.execute(req.branch, req.file_paths)
 
 
 @router.post("/review", response_model=CodeReviewResponseDTO)
-async def review_code(req: ImpactAnalysisRequestDTO, uc: ReviewCode = Depends(_review_uc)):
+async def review_code(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
+    llm = _llm_with_key(user_key)
+    uc = ReviewCode(llm, get_git_repo())
     return await uc.execute(req.branch, req.file_paths)
 
 
 @router.post("/conflicts", response_model=MergeConflictResponseDTO)
-async def check_conflicts(req: ImpactAnalysisRequestDTO, llm: LLMPort = Depends(_llm)):
+async def check_conflicts(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
+    llm = _llm_with_key(user_key)
     conflicts = get_git_repo().check_merge_conflicts(req.branch)
     if not conflicts:
         return MergeConflictResponseDTO(has_conflicts=False)
@@ -84,7 +84,7 @@ async def apply_resolution(req: ApplyResolutionRequestDTO):
 async def analyze_rca(
     req: RCARequestDTO,
     db: AsyncSession = Depends(get_db),
-    uc: AnalyzeFailure = Depends(_failure_uc),
+    user_key: str | None = Depends(_get_user_llm_key),
 ):
     build_log = req.build_log
     if not build_log and req.deployment_id:
@@ -96,4 +96,5 @@ async def analyze_rca(
     if not build_log:
         raise HTTPException(status_code=400, detail="No build log available")
 
+    uc = AnalyzeFailure(_llm_with_key(user_key))
     return await uc.execute(build_log)

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../api/authApi';
 
 export default function LoginPage() {
@@ -64,7 +64,10 @@ export default function LoginPage() {
             {loading ? '로그인 중...' : '로그인'}
           </button>
         </form>
-        <p className="text-xs text-gray-400 text-center mt-6">초기 관리자: admin / admin1234</p>
+        <p className="text-xs text-gray-500 text-center mt-4">
+          계정이 없으신가요? <Link to="/signup" className="text-blue-600 hover:underline">회원가입</Link>
+        </p>
+        <p className="text-xs text-gray-400 text-center mt-2">초기 관리자: admin / admin1234</p>
       </div>
     </div>
   );

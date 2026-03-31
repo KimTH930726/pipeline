@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import DeployPage from './pages/DeployPage';
@@ -19,6 +20,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/branches" element={<BranchPage />} />

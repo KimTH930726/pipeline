@@ -26,11 +26,11 @@ Python/FastAPI 기반 프로젝트의 배포 파이프라인에서 코드 변경
 
 
 class VPCLLMAdapter(LLMPort):
-    def __init__(self, endpoint: str, timeout: float = 120.0) -> None:
+    def __init__(self, endpoint: str, timeout: float = 120.0, user_api_key: str | None = None) -> None:
         self._endpoint = endpoint
         self._timeout = timeout
         from app.config import settings
-        self._api_key = settings.LLM_API_KEY
+        self._api_key = user_api_key or settings.LLM_API_KEY
         self._usecase_code = settings.LLM_USECASE_CODE
         self._usecase_id = settings.LLM_USECASE_ID
         self._project_id = settings.LLM_PROJECT_ID

@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.shared.infrastructure.database import get_db
 from app.shared.infrastructure.security import decode_token
 from app.auth.schemas import (
-    LoginRequest, RegisterRequest, TokenResponse, RefreshRequest,
+    LoginRequest, SignupRequest, RegisterRequest, TokenResponse, RefreshRequest,
     AccessTokenResponse, UserOut, ApiKeyUpdateRequest,
 )
-from app.auth.service import authenticate, create_user, get_user_by_id, list_users, update_api_key, make_tokens
+from app.auth.service import authenticate, signup_user, create_user, activate_user, get_user_by_id, list_users, update_api_key, make_tokens
 from app.auth.dependencies import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -36,13 +36,40 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
 
 
+@router.post("/signup", response_model=UserOut)
+async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
+    """셀프 회원가입 (관리자 승인 전까지 비활성)"""
+    try:
+        user = await signup_user(db, body.username, body.password, body.llm_api_key)
+        return _to_user_out(user)
+    except Exception:
+        raise HTTPException(status_code=409, detail="이미 존재하는 사용자입니다.")
+
+
 @router.post("/register", response_model=UserOut)
 async def register(body: RegisterRequest, admin: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    """관리자가 직접 사용자 등록"""
     try:
         user = await create_user(db, body.username, body.password, body.role)
         return _to_user_out(user)
     except Exception:
         raise HTTPException(status_code=409, detail="이미 존재하는 사용자입니다.")
+
+
+@router.put("/users/{user_id}/activate")
+async def activate(user_id: int, admin: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    user = await activate_user(db, user_id, True)
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    return _to_user_out(user)
+
+
+@router.put("/users/{user_id}/deactivate")
+async def deactivate(user_id: int, admin: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    user = await activate_user(db, user_id, False)
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    return _to_user_out(user)
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
