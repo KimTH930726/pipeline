@@ -136,15 +136,16 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
-        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
+        # docker compose restart/up은 docker.sock 통해 호스트에서 실행 → 호스트 경로
+        host_compose = f"{target_path}/{settings.DEPLOY_COMPOSE_FILE}"
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
         if deploy_mode == "restart":
-            cmd = ["docker", "compose", "-f", compose_file, "restart"] + services
+            cmd = ["docker", "compose", "-f", host_compose, "restart"] + services
             await self._log(dep_id_str, full_log, f"[DEPLOY] 폐쇄망 모드 - 재기동: {' '.join(cmd)}")
         else:
-            cmd = ["docker", "compose", "-f", compose_file,
+            cmd = ["docker", "compose", "-f", host_compose,
                    "up", "-d", "--build", "--remove-orphans"] + services
             await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
 
