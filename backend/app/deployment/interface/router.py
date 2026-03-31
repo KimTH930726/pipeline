@@ -11,7 +11,7 @@ from app.deployment.application.use_cases import TriggerDeploy, GetDeployment, G
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.deployment.infrastructure.websocket_manager import ws_manager
-from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
+
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
@@ -34,7 +34,7 @@ def _get_event_bus() -> InMemoryEventBus:
 
 
 def _build_runner(bus: InMemoryEventBus = Depends(_get_event_bus)) -> BuildProcessRunner:
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if (settings.LLM_MODE == "inhouse" and settings.LLM_API_KEY) else MockLLMAdapter()
+    llm = VPCLLMAdapter(settings.LLM_ENDPOINT)
     return BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo())
 
 

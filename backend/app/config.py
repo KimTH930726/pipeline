@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Agentic SCM Portal"
     REPO_PATH: str = str(Path.home() / "agentic-scm-portal" / "sample-repo")
     DATABASE_URL: str = f"sqlite+aiosqlite:///{Path.home() / 'agentic-scm-portal' / 'data' / 'audit.db'}"
-    LLM_MODE: str = "mock"  # mock | inhouse
+    LLM_MODE: str = "inhouse"
     LLM_ENDPOINT: str = "https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat"
     LLM_API_KEY: str = ""
     LLM_USECASE_CODE: str = "playground"

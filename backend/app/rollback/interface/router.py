@@ -11,7 +11,7 @@ from app.rollback.application.use_cases import ExecuteRollback
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.git.infrastructure.git_python_adapter import get_git_repo
-from app.analysis.infrastructure.mock_llm_adapter import MockLLMAdapter
+
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 
 router = APIRouter(prefix="/api/rollback", tags=["rollback"])
@@ -34,7 +34,7 @@ def _rollback_uc(
     db: AsyncSession = Depends(get_db),
     bus: InMemoryEventBus = Depends(_get_event_bus),
 ) -> ExecuteRollback:
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT) if (settings.LLM_MODE == "inhouse" and settings.LLM_API_KEY) else MockLLMAdapter()
+    llm = VPCLLMAdapter(settings.LLM_ENDPOINT)
     return ExecuteRollback(
         git_repo=get_git_repo(),
         deploy_repo=SQLAlchemyDeploymentRepository(db),
