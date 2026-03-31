@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     FERNET_SECRET_KEY: str = ""
     ADMIN_DEFAULT_PASSWORD: str = "admin1234"
+    GIT_CLONE_URL: str = ""  # 팀원용 clone URL (예: ssh://user@서버IP/srv/repos/SMAgentLab.git)
 
     # === 배포 대상 설정 ===
     # DEPLOY_TARGET_PATH: 배포 대상 프로젝트의 docker-compose.yml이 있는 경로

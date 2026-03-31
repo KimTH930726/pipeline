@@ -19,6 +19,8 @@ services:
       - DEPLOY_COMPOSE_FILE=docker-compose.yml
       - DEPLOY_SERVICE_NAME=backend
       - DEPLOY_MODE=restart
+      # 팀원용 clone URL (시작 가이드 페이지에 표시)
+      # - GIT_CLONE_URL=ssh://user@서버IP/srv/repos/SMAgentLab.git
 
   frontend:
     build: ./frontend

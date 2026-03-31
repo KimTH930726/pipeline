@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Check, Terminal, GitBranch, Code, Rocket, ChevronDown, ChevronRight } from 'lucide-react';
 import Header from '../components/layout/Header';
+import client from '../api/client';
 
 function CopyBlock({ label, command }: { label?: string; command: string }) {
   const [copied, setCopied] = useState(false);
@@ -44,7 +45,13 @@ function Step({ number, title, icon: Icon, children, defaultOpen = false }: {
 
 export default function GuidePage() {
   const serverIP = window.location.hostname;
-  const repoPath = '/srv/repos/SMAgentLab.git';
+  const [cloneUrl, setCloneUrl] = useState(`ssh://user@${serverIP}/srv/repos/SMAgentLab.git`);
+
+  useEffect(() => {
+    client.get('/config/public').then((r) => {
+      if (r.data.git_clone_url) setCloneUrl(r.data.git_clone_url);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div>
@@ -60,11 +67,12 @@ export default function GuidePage() {
 
         <Step number={2} title="프로젝트 클론 (최초 1회)" icon={Terminal}>
           <p className="text-sm text-gray-600 mt-3">VSCode 터미널에서 아래 명령어를 실행하세요.</p>
-          <CopyBlock label="프로젝트 클론" command={`git clone ssh://user@${serverIP}${repoPath}`} />
+          <CopyBlock label="프로젝트 클론" command={`git clone ${cloneUrl}`} />
           <CopyBlock label="폴더 이동" command="cd SMAgentLab" />
           <CopyBlock label="VSCode로 열기" command="code ." />
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
-            <strong>참고:</strong> SSH 계정은 서버 관리자에게 요청하세요. 최초 1회만 하면 됩니다.
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700 space-y-1">
+            <p><strong>참고:</strong> SSH 계정은 서버 관리자에게 요청하세요. 최초 1회만 하면 됩니다.</p>
+            <p>clone URL이 다르면 관리자에게 정확한 주소를 확인하세요.</p>
           </div>
         </Step>
 

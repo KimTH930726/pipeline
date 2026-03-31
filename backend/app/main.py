@@ -85,3 +85,8 @@ app.include_router(auth_router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "app": settings.APP_NAME}
+
+
+@app.get("/api/config/public")
+async def public_config():
+    return {"git_clone_url": settings.GIT_CLONE_URL}
