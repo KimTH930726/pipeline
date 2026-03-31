@@ -36,15 +36,36 @@ class SandboxProcessManager:
                 shutil.rmtree(sandbox_dir)
             Path(sandbox_dir).mkdir(parents=True)
 
-            # 2. 브랜치 소스 추출 (git archive)
+            # 2. 브랜치 소스 추출 (backend + frontend-react)
             process = await asyncio.create_subprocess_shell(
-                f"cd {src} && git archive {branch} -- backend/ | tar -x -C {sandbox_dir}",
+                f"cd {src} && git archive {branch} -- backend/ frontend-react/ | tar -x -C {sandbox_dir}",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await process.communicate()
             if process.returncode != 0 or not Path(f"{sandbox_dir}/backend").exists():
                 return False, f"브랜치 '{branch}' 소스 추출 실패: {stderr.decode()}"
+
+            # 2-1. 프론트엔드 빌드 (이미지 내 node_modules 활용)
+            host_frontend_src = f"{host_sandbox_dir}/frontend-react"
+            if Path(f"{sandbox_dir}/frontend-react").exists():
+                build_cmd = (
+                    f"docker run --rm "
+                    f"-v {host_frontend_src}:/build-src "
+                    f"-w /app "
+                    f"smagentlab-frontend:latest "
+                    f"sh -c 'cp -r /build-src/src /app/src 2>/dev/null; "
+                    f"cp /build-src/index.html /app/index.html 2>/dev/null; "
+                    f"npm run build 2>&1 && cp -r /app/dist /build-src/dist'"
+                )
+                process = await asyncio.create_subprocess_shell(
+                    build_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await process.communicate()
+                if process.returncode != 0:
+                    logger.warning("Frontend build failed (패키지 변경 시 정상): %s", stderr.decode()[:200])
 
             # 3. 환경변수 추출 (.env 파일에서)
             env_flags = (
@@ -71,10 +92,16 @@ class SandboxProcessManager:
                 f"smagentlab-backend:latest"
             )
 
+            # 프론트엔드: 빌드된 dist가 있으면 마운트, 없으면 이미지 그대로
+            frontend_vol = ""
+            if Path(f"{sandbox_dir}/frontend-react/dist").exists():
+                frontend_vol = f"-v {host_frontend_src}/dist:/usr/share/nginx/html "
+
             frontend_cmd = (
                 f"docker run -d --name {frontend_name} "
                 f"--network {network} "
                 f"-p {frontend_port}:80 "
+                f"{frontend_vol}"
                 f"smagentlab-frontend:latest"
             )
 

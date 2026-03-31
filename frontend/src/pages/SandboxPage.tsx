@@ -191,10 +191,11 @@ export default function SandboxPage() {
       <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
         <p className="font-semibold mb-1">샌드박스 제한사항</p>
         <ul className="list-disc ml-4 space-y-0.5 text-xs">
-          <li>소스 코드 변경만 반영됩니다 (Python/React 소스 수정)</li>
-          <li>패키지 추가(pip install, npm install)가 필요한 변경은 샌드박스에서 동작하지 않습니다</li>
-          <li>패키지 변경이 포함된 브랜치는 로컬 환경에서 직접 테스트하세요</li>
-          <li>DB/Redis는 운영 환경과 공유됩니다</li>
+          <li><strong>Backend</strong>: Python 소스 변경 반영됨 (볼륨 마운트)</li>
+          <li><strong>Frontend</strong>: React 소스 변경 시 자동 빌드 후 반영</li>
+          <li>패키지 추가(pip install, npm install)가 필요한 변경은 <strong>샌드박스에서 동작하지 않습니다</strong></li>
+          <li>패키지 변경이 포함된 브랜치는 <strong>로컬 환경에서 직접 테스트</strong>하세요</li>
+          <li>DB/Redis는 운영 환경과 공유됩니다 (데이터 주의)</li>
         </ul>
       </div>
     </div>
