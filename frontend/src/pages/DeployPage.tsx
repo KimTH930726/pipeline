@@ -67,6 +67,13 @@ export default function DeployPage() {
   useEffect(() => { reload(); }, [reload]);
   useAutoRefresh(reload);
 
+  // 빌드 중이면 5초마다 이력 갱신
+  useEffect(() => {
+    if (buildStatus !== 'BUILDING') return;
+    const timer = setInterval(() => loadDeploys(currentPage), 5000);
+    return () => clearInterval(timer);
+  }, [buildStatus, currentPage]);
+
   const handleBranchSelect = async (branch: string) => {
     setSelectedBranch(branch);
     setChangedFiles([]);

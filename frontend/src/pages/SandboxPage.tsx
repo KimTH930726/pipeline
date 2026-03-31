@@ -29,16 +29,24 @@ export default function SandboxPage() {
   useEffect(() => { loadData(); }, [loadData]);
   useAutoRefresh(loadData);
 
-  const loadSandboxes = () => {
-    client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
-  };
+  // CREATING 상태가 있으면 3초마다 자동 polling
+  useEffect(() => {
+    const hasCreating = sandboxes.some((s) => s.status === 'CREATING');
+    if (!hasCreating) return;
+    const timer = setInterval(() => {
+      client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [sandboxes]);
 
   const handleCreate = async () => {
     if (!branch) return;
     setCreating(true);
     try {
       await client.post('/sandbox/', { branch });
-      setTimeout(loadSandboxes, 2000);
+      setTimeout(() => {
+        client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
+      }, 2000);
     } finally {
       setCreating(false);
     }
@@ -46,13 +54,13 @@ export default function SandboxPage() {
 
   const handleStop = async (id: number) => {
     await client.post(`/sandbox/${id}/stop`);
-    loadSandboxes();
+    loadData();
   };
 
   const handleDestroy = async (id: number) => {
     if (!confirm('샌드박스를 삭제하시겠습니까? 컨테이너와 임시 파일이 모두 제거됩니다.')) return;
     await client.delete(`/sandbox/${id}`);
-    loadSandboxes();
+    loadData();
   };
 
   const statusStyle = (status: string) => {
@@ -95,7 +103,7 @@ export default function SandboxPage() {
           {creating ? '생성 중...' : '샌드박스 생성'}
         </button>
         <button
-          onClick={loadSandboxes}
+          onClick={loadData}
           className="px-3 py-2 text-gray-500 hover:text-gray-700"
           title="새로고침"
         >
