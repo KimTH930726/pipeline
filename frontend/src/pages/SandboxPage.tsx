@@ -188,15 +188,41 @@ export default function SandboxPage() {
         )}
       </div>
 
-      <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
-        <p className="font-semibold mb-1">샌드박스 제한사항</p>
-        <ul className="list-disc ml-4 space-y-0.5 text-xs">
-          <li><strong>Backend</strong>: Python 소스 변경 반영됨 (볼륨 마운트)</li>
-          <li><strong>Frontend</strong>: React 소스 변경 시 자동 빌드 후 반영</li>
-          <li>패키지 추가(pip install, npm install)가 필요한 변경은 <strong>샌드박스에서 동작하지 않습니다</strong></li>
-          <li>패키지 변경이 포함된 브랜치는 <strong>로컬 환경에서 직접 테스트</strong>하세요</li>
-          <li>DB/Redis는 운영 환경과 공유됩니다 (데이터 주의)</li>
-        </ul>
+      <div className="mt-6 space-y-3">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-green-800 mb-2">&#10003; 샌드박스에서 가능한 것</p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white rounded-lg p-2 border border-green-100">
+              <span className="font-semibold text-green-700">Backend</span>
+              <span className="text-gray-600"> — Python 소스 수정 즉시 반영</span>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-green-100">
+              <span className="font-semibold text-green-700">Frontend</span>
+              <span className="text-gray-600"> — React 소스 수정 자동 빌드 반영</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-red-800 mb-2">&#10007; 샌드박스에서 불가능한 것</p>
+          <div className="text-xs space-y-1.5">
+            <p>
+              <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-semibold">패키지 추가</span>
+              <span className="text-gray-700 ml-1">pip install / npm install 이 필요한 변경은 동작하지 않습니다</span>
+            </p>
+            <p className="text-gray-600">
+              → 패키지 변경 시 <span className="font-semibold text-red-700">로컬 환경에서 테스트</span> 후
+              이미지 재빌드(<code className="bg-gray-200 px-1 rounded">export-images.sh</code>)가 필요합니다
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-orange-800 mb-1">&#9888; 주의</p>
+          <p className="text-xs text-gray-700">
+            DB/Redis는 <span className="font-semibold text-orange-700">운영 환경과 공유</span>됩니다. 샌드박스에서의 데이터 변경이 운영에 영향을 줄 수 있습니다.
+          </p>
+        </div>
       </div>
     </div>
   );
