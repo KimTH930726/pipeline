@@ -2,31 +2,31 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8080:8000"
+      - "${PORTAL_PORT:-8080}:8000"
     volumes:
-      - D:/personalPJT/SMAgentLab:/repo
-      - D:/personalPJT/SMAgentLab:/deploy-target
+      - ${REPO_HOST_PATH:-./data/repo}:/repo
       - db-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - REPO_PATH=/repo
       - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
       - LLM_MODE=inhouse
-      - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
+      - LLM_ENDPOINT=${LLM_ENDPOINT:-https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat}
+      - LLM_API_KEY=${LLM_API_KEY:-}
       - FERNET_SECRET_KEY=${FERNET_SECRET_KEY:-}
-      - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
-      # 호스트 절대 경로 사용 (Docker 소켓 공유라 호스트 기준으로 실행됨)
-      - DEPLOY_TARGET_PATH=D:/personalPJT/SMAgentLab
-      - DEPLOY_COMPOSE_FILE=docker-compose.yml
-      - DEPLOY_SERVICE_NAME=backend
-      - DEPLOY_MODE=restart
-      # 팀원용 clone URL (시작 가이드 페이지에 표시)
-      # - GIT_CLONE_URL=ssh://user@서버IP/srv/repos/SMAgentLab.git
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-secret-key-in-production}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin1234}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost","http://localhost:3000"]}
+      - DEPLOY_TARGET_PATH=${DEPLOY_TARGET_PATH:-}
+      - DEPLOY_COMPOSE_FILE=${DEPLOY_COMPOSE_FILE:-docker-compose.yml}
+      - DEPLOY_SERVICE_NAME=${DEPLOY_SERVICE_NAME:-backend}
+      - DEPLOY_MODE=${DEPLOY_MODE:-restart}
+      - GIT_CLONE_URL=${GIT_CLONE_URL:-}
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
 

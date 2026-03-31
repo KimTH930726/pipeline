@@ -88,42 +88,55 @@ git clone ssh://user@서버IP/srv/repos/SMAgentLab.git
 ## 4단계: Pipeline 포탈 기동 (폐쇄망 서버)
 
 ### .env 생성
+
+**docker-compose.yml은 수정하지 마세요.** 모든 환경별 설정은 `.env` 파일로 관리합니다.
+
 ```bash
 cd pipeline
 cp backend/.env.example .env
+vi .env
 ```
 
-`.env` 필수 항목:
+### .env 필수 설정
+
+```bash
+# === 필수 (반드시 환경에 맞게 변경) ===
+
+# Git 레포 호스트 경로
+# - bare repo 경로 또는 프로젝트 소스 경로
+# - 주의: 호스트 절대 경로 사용 (Docker 소켓 공유 방식이라 호스트 기준으로 실행됨)
+REPO_HOST_PATH=/srv/repos/SMAgentLab.git
+
+# 배포 대상 프로젝트 호스트 경로
+# - docker compose restart가 실행되는 위치
+# - 주의: 반드시 호스트 절대 경로 (컨테이너 내부 경로 X)
+# - 이유: Pipeline 컨테이너가 docker.sock으로 호스트 Docker를 제어하므로
+#         compose 파일의 볼륨 마운트가 호스트 기준으로 해석됨
+DEPLOY_TARGET_PATH=/home/deploy/SMAgentLab
+
+# API Key 암호화 키
+# 생성: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+FERNET_SECRET_KEY=생성한키
+
+# JWT 서명 키 (운영 환경에서 반드시 변경)
+JWT_SECRET_KEY=운영용키
+
+# 팀원용 clone URL (시작 가이드 페이지에 표시)
+GIT_CLONE_URL=ssh://user@서버IP/srv/repos/SMAgentLab.git
 ```
-FERNET_SECRET_KEY=생성된키    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-JWT_SECRET_KEY=변경필수
+
+### .env 선택 설정
+
+```bash
+# 초기 관리자 비밀번호 (기본: admin1234)
 ADMIN_DEFAULT_PASSWORD=admin1234
-```
 
-### docker-compose.yml 설정
+# 배포 모드 (기본: restart)
+DEPLOY_MODE=restart
 
-```yaml
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8080:8000"
-    volumes:
-      - /srv/repos/SMAgentLab.git:/repo          # Git 중앙 저장소
-      - /path/to/SMAgentLab:/deploy-target        # 배포 대상 (소스 볼륨)
-      - db-data:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - REPO_PATH=/repo
-      - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
-      - LLM_MODE=inhouse
-      - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
-      - FERNET_SECRET_KEY=${FERNET_SECRET_KEY}
-      - DEPLOY_TARGET_PATH=/deploy-target
-      - DEPLOY_COMPOSE_FILE=docker-compose.yml
-      - DEPLOY_SERVICE_NAME=backend
-      - DEPLOY_MODE=restart
-      - GIT_CLONE_URL=ssh://user@서버IP/srv/repos/SMAgentLab.git
+# 포탈 포트 (기본: 8080/3000)
+PORTAL_PORT=8080
+FRONTEND_PORT=3000
 ```
 
 ### 이미지 로드 + 기동
