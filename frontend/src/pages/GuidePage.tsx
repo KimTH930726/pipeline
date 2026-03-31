@@ -48,7 +48,7 @@ export default function GuidePage() {
   const [cloneUrl, setCloneUrl] = useState(`ssh://user@${serverIP}/srv/repos/SMAgentLab.git`);
 
   useEffect(() => {
-    client.get('/config/public').then((r) => {
+    client.get<{ git_clone_url: string }>('/config/public').then((r) => {
       if (r.data.git_clone_url) setCloneUrl(r.data.git_clone_url);
     }).catch(() => {});
   }, []);
