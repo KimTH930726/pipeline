@@ -76,11 +76,11 @@ async def review_code(req: ImpactAnalysisRequestDTO, user_key: str | None = Depe
 
 @router.post("/conflicts", response_model=MergeConflictResponseDTO)
 async def check_conflicts(req: ImpactAnalysisRequestDTO, user_key: str | None = Depends(_get_user_llm_key)):
-    llm = _llm_with_key(user_key)
     conflicts = get_git_repo().check_merge_conflicts(req.branch)
     if not conflicts:
         return MergeConflictResponseDTO(has_conflicts=False)
 
+    llm = _llm_with_key(user_key)
     report = await llm.resolve_conflicts(conflicts)
     return MergeConflictResponseDTO(
         has_conflicts=True,

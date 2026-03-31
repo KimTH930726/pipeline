@@ -4,11 +4,9 @@ services:
     ports:
       - "8080:8000"
     volumes:
-      - D:/personalPJT/test-repo:/repo
+      - D:/personalPJT/SMAgentLab:/repo
+      - D:/personalPJT/SMAgentLab:/deploy-target
       - db-data:/data
-      # ─── 배포 대상 Docker 연결 (아래 가이드 참고) ───
-      # 배포 파이프라인이 대상 서비스의 Docker를 제어하려면
-      # 호스트의 Docker 소켓을 마운트해야 합니다:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - REPO_PATH=/repo
@@ -17,34 +15,10 @@ services:
       - LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
       - FERNET_SECRET_KEY=${FERNET_SECRET_KEY:-}
       - CORS_ORIGINS=["http://localhost","http://localhost:3000"]
-      # ─── 배포 대상 설정 가이드 ───
-      #
-      # DEPLOY_TARGET_PATH: 배포 대상 프로젝트의 docker-compose.yml이 있는 경로
-      #   - 이 경로는 backend 컨테이너 내부 기준 경로입니다
-      #   - volumes로 호스트 경로를 마운트한 뒤 컨테이너 경로를 지정하세요
-      #
-      # 예시 1) 같은 서버에서 관리하는 경우:
-      #   volumes에 추가: - /home/deploy/SMAgentLab:/deploy-target
-      #   환경변수: DEPLOY_TARGET_PATH=/deploy-target
-      #
-      # 예시 2) SMAgentLab 프로젝트를 배포 대상으로 사용:
-      #   volumes에 추가: - D:/personalPJT/SMAgentLab:/deploy-target
-      #   환경변수: DEPLOY_TARGET_PATH=/deploy-target
-      #
-      # DEPLOY_COMPOSE_FILE: docker-compose 파일명 (기본: docker-compose.yml)
-      # DEPLOY_SERVICE_NAME: 특정 서비스만 재빌드 시 서비스명 (비어있으면 전체)
-      #
-      # 설정 후 파이프라인 동작:
-      #   1. 브랜치 빌드 검증: docker compose -f {path}/{file} build
-      #   2. main 머지 (git merge --no-ff)
-      #   3. Docker 재기동: docker compose -f {path}/{file} up -d --build --remove-orphans
-      #
-      # ──────────────────────────────────
-      # 아래 주석을 해제하고 실제 경로를 설정하세요:
-      # - DEPLOY_TARGET_PATH=/deploy-target
-      # - DEPLOY_COMPOSE_FILE=docker-compose.yml
-      # - DEPLOY_SERVICE_NAME=backend
-      # - DEPLOY_MODE=restart  (폐쇄망: restart / 인터넷: build)
+      - DEPLOY_TARGET_PATH=/deploy-target
+      - DEPLOY_COMPOSE_FILE=docker-compose.yml
+      - DEPLOY_SERVICE_NAME=backend
+      - DEPLOY_MODE=restart
 
   frontend:
     build: ./frontend
