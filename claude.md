@@ -46,7 +46,7 @@ backend/app/<context>/
 - **LLM**: DevX InHouse API (blocking 모드, Bearer 인증, 사용자별 키)
 - **Auth**: JWT access(8h)/refresh(7d), 회원가입→관리자 승인→활성화
 - **Frontend**: 탭 포커스 시 자동 리로드 (`useAutoRefresh`), 마크다운 렌더링
-- **Sandbox 빌드**: `node:20-alpine` + 배포 대상 `node_modules` 마운트 (폐쇄망 호환, npm install 불필요)
+- **Sandbox 빌드**: 컨테이너 내부 `docker build` (Dockerfile 캐시 레이어 활용, 폐쇄망 호환 — 패키지 변경 없을 시)
 
 ## Environment Variables
 | Variable | Purpose |
