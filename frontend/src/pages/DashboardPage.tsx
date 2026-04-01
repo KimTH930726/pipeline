@@ -15,10 +15,12 @@ export default function DashboardPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   const loadData = useCallback(() => {
-    fetchRecentDeploys(currentPage, PAGE_SIZE, undefined, statusFilter || undefined).then(setDeployPage).catch(() => {});
-  }, [statusFilter, currentPage]);
+    fetchRecentDeploys(currentPage, PAGE_SIZE, undefined, statusFilter || undefined, dateFrom || undefined, dateTo || undefined).then(setDeployPage).catch(() => {});
+  }, [statusFilter, currentPage, dateFrom, dateTo]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useAutoRefresh(loadData);
@@ -81,7 +83,7 @@ export default function DashboardPage() {
 
       {/* main 배포 이력 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="font-semibold text-gray-800">main 브랜치 배포 이력</h3>
           <div className="flex items-center gap-1">
             {[
@@ -102,6 +104,29 @@ export default function DashboardPage() {
                 {f.label}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+              className="px-2 py-1 text-xs border border-gray-300 rounded"
+            />
+            <span className="text-xs text-gray-400">~</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+              className="px-2 py-1 text-xs border border-gray-300 rounded"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); setCurrentPage(1); }}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                초기화
+              </button>
+            )}
           </div>
         </div>
         {deploys.length === 0 ? (

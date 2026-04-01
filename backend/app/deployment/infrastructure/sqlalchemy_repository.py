@@ -52,22 +52,29 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
         orm = result.scalar_one_or_none()
         return self._to_entity(orm) if orm else None
 
-    async def count(self, branch: str | None = None, status: str | None = None) -> int:
-        from sqlalchemy import func
-        query = select(func.count(DeploymentORM.id))
+    @staticmethod
+    def _apply_filters(query, branch=None, status=None, date_from=None, date_to=None):
+        from datetime import datetime
         if branch:
             query = query.where(DeploymentORM.branch == branch)
         if status:
             query = query.where(DeploymentORM.status == status)
+        if date_from:
+            query = query.where(DeploymentORM.started_at >= datetime.fromisoformat(date_from))
+        if date_to:
+            query = query.where(DeploymentORM.started_at <= datetime.fromisoformat(date_to + "T23:59:59"))
+        return query
+
+    async def count(self, branch=None, status=None, date_from=None, date_to=None) -> int:
+        from sqlalchemy import func
+        query = select(func.count(DeploymentORM.id))
+        query = self._apply_filters(query, branch, status, date_from, date_to)
         result = await self._db.execute(query)
         return result.scalar() or 0
 
-    async def find_recent(self, branch: str | None = None, status: str | None = None, limit: int = 10, offset: int = 0) -> list[Deployment]:
+    async def find_recent(self, branch=None, status=None, date_from=None, date_to=None, limit=10, offset=0) -> list[Deployment]:
         query = select(DeploymentORM).order_by(DeploymentORM.started_at.desc()).limit(limit).offset(offset)
-        if branch:
-            query = query.where(DeploymentORM.branch == branch)
-        if status:
-            query = query.where(DeploymentORM.status == status)
+        query = self._apply_filters(query, branch, status, date_from, date_to)
         result = await self._db.execute(query)
         return [self._to_entity(r) for r in result.scalars().all()]
 

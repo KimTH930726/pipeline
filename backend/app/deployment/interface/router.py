@@ -93,11 +93,13 @@ async def mark_rolled_back(deployment_id: int, db: AsyncSession = Depends(get_db
 async def get_recent(
     branch: str | None = None,
     status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     page: int = 1,
     size: int = 10,
     uc: GetRecentDeployments = Depends(_recent_uc),
 ):
-    items, total = await uc.execute(branch, status=status, page=page, size=size)
+    items, total = await uc.execute(branch, status=status, date_from=date_from, date_to=date_to, page=page, size=size)
     return DeployPageDTO(items=items, total=total, page=page, size=size)
 
 

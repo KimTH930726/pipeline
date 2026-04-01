@@ -14,8 +14,14 @@ export interface DeployPage {
   size: number;
 }
 
-export const fetchRecentDeploys = (page = 1, size = 10, branch?: string, status?: string) =>
-  client.get<DeployPage>('/deploy/recent', { params: { page, size, ...(branch ? { branch } : {}), ...(status ? { status } : {}) } }).then(r => r.data);
+export const fetchRecentDeploys = (page = 1, size = 10, branch?: string, status?: string, dateFrom?: string, dateTo?: string) =>
+  client.get<DeployPage>('/deploy/recent', { params: {
+    page, size,
+    ...(branch ? { branch } : {}),
+    ...(status ? { status } : {}),
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  } }).then(r => r.data);
 
 export interface RollbackResult {
   status: string;

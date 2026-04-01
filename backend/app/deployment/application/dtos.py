@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pydantic import BaseModel
+from datetime import datetime, timezone
+from pydantic import BaseModel, field_serializer
 
 
 class DeployRequestDTO(BaseModel):
@@ -18,6 +18,14 @@ class DeployStatusDTO(BaseModel):
     commit_messages: str | None = None
     started_at: datetime | None
     finished_at: datetime | None
+
+    @field_serializer('started_at', 'finished_at')
+    def serialize_dt(self, v: datetime | None) -> str | None:
+        if v is None:
+            return None
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.isoformat()
 
 
 class DeployDetailDTO(DeployStatusDTO):
