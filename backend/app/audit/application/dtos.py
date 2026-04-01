@@ -9,6 +9,7 @@ class AuditEntryDTO(BaseModel):
     event_type: str
     branch: str
     commit_sha: str | None
+    acted_by: str | None = None
     ai_report: dict | None
     metadata: dict | None
     created_at: datetime

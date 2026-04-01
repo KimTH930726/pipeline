@@ -13,6 +13,7 @@ from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.git.infrastructure.git_python_adapter import get_git_repo
 
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
+from app.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/rollback", tags=["rollback"])
 
@@ -47,5 +48,6 @@ def _rollback_uc(
 async def trigger_rollback(
     req: RollbackRequestDTO,
     uc: ExecuteRollback = Depends(_rollback_uc),
+    user: dict = Depends(get_current_user),
 ):
-    return await uc.execute(req.branch, req.target_sha)
+    return await uc.execute(req.branch, req.target_sha, acted_by=user["username"])

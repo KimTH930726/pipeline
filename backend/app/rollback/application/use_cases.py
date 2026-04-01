@@ -25,7 +25,7 @@ class ExecuteRollback:
         self._runner = build_runner
         self._event_bus = event_bus
 
-    async def execute(self, branch: str, target_sha: str | None = None) -> RollbackResultDTO:
+    async def execute(self, branch: str, target_sha: str | None = None, acted_by: str | None = None) -> RollbackResultDTO:
         if target_sha is None:
             last_success = await self._deploy_repo.find_last_successful(branch)
             if last_success and last_success.commit_sha:
@@ -42,16 +42,18 @@ class ExecuteRollback:
         deployment = Deployment(
             branch=branch, commit_sha=new_sha, status=DeploymentStatus.BUILDING,
             commit_messages=f"[원복] {target_sha[:8]} 으로 되돌림",
+            acted_by=acted_by,
         )
         deployment = await self._deploy_repo.save(deployment)
 
-        asyncio.create_task(self._runner.run(deployment.id, branch, is_rollback=True))
+        asyncio.create_task(self._runner.run(deployment.id, branch, is_rollback=True, acted_by=acted_by))
 
         await self._event_bus.publish(RollbackExecuted(
             branch=branch,
             target_sha=target_sha,
             new_commit_sha=new_sha,
             deployment_id=deployment.id,
+            acted_by=acted_by,
         ))
 
         return RollbackResultDTO(

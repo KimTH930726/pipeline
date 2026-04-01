@@ -84,7 +84,7 @@ async def get_status(deployment_id: int, uc: GetDeployment = Depends(_get_uc)):
 
 
 @router.post("/status/{deployment_id}/rolled-back")
-async def mark_rolled_back(deployment_id: int, db: AsyncSession = Depends(get_db)):
+async def mark_rolled_back(deployment_id: int, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     await MarkRolledBack(SQLAlchemyDeploymentRepository(db)).execute(deployment_id)
     return {"status": "marked"}
 

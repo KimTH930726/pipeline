@@ -123,7 +123,11 @@ export default function DeployPage() {
         setCheckingConflicts(false);
         return;
       }
-    } catch { /* 충돌 체크 실패 시 배포 진행 */ }
+    } catch {
+      updateStage('CONFLICT_CHECK', 'failed');
+      setCheckingConflicts(false);
+      return;
+    }
     updateStage('CONFLICT_CHECK', 'completed');
     setCheckingConflicts(false);
 

@@ -12,6 +12,7 @@ class AuditLogORM(Base):
     event_type = Column(String(50), nullable=False, index=True)
     branch = Column(String(255), nullable=False, index=True)
     commit_sha = Column(String(40))
+    acted_by = Column(String(100), nullable=True)
     ai_report = Column(JSON, nullable=True)
     metadata_ = Column("metadata", JSON, nullable=True)
     prev_hash = Column(String(64))

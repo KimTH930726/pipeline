@@ -79,19 +79,33 @@ async def check_conflicts(req: ImpactAnalysisRequestDTO, user_key: str | None = 
         return MergeConflictResponseDTO(has_conflicts=False)
 
     llm = _llm_with_key(user_key)
-    report = await llm.resolve_conflicts(conflicts)
-    return MergeConflictResponseDTO(
-        has_conflicts=True,
-        conflicting_files=report.conflicting_files,
-        resolutions=[
-            ConflictResolutionDTO(
-                file_path=r.file_path, original_content=r.original_content,
-                resolved_content=r.resolved_content, explanation=r.explanation,
-            )
-            for r in report.resolutions
-        ],
-        summary=report.summary,
-    )
+    try:
+        report = await llm.resolve_conflicts(conflicts)
+        return MergeConflictResponseDTO(
+            has_conflicts=True,
+            conflicting_files=report.conflicting_files,
+            resolutions=[
+                ConflictResolutionDTO(
+                    file_path=r.file_path, original_content=r.original_content,
+                    resolved_content=r.resolved_content, explanation=r.explanation,
+                )
+                for r in report.resolutions
+            ],
+            summary=report.summary,
+        )
+    except Exception:
+        return MergeConflictResponseDTO(
+            has_conflicts=True,
+            conflicting_files=list(conflicts.keys()),
+            resolutions=[
+                ConflictResolutionDTO(
+                    file_path=fp, original_content=content,
+                    resolved_content=content, explanation="AI 해결안 생성 실패 — 충돌 마커를 직접 제거해주세요.",
+                )
+                for fp, content in conflicts.items()
+            ],
+            summary="AI 충돌 해결에 실패했습니다. 각 파일의 충돌 마커(<<<<<<, ======, >>>>>>)를 직접 제거하고 해결안을 작성해주세요.",
+        )
 
 
 @router.post("/conflicts/apply")

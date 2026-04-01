@@ -26,3 +26,14 @@ async def get_db() -> AsyncSession:
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # 마이그레이션: 기존 테이블에 누락된 컬럼 추가
+    async with engine.begin() as conn:
+        for table, column, col_type in [
+            ("audit_logs", "acted_by", "VARCHAR(100)"),
+        ]:
+            try:
+                await conn.execute(
+                    __import__("sqlalchemy").text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                )
+            except Exception:
+                pass

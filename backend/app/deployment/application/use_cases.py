@@ -36,7 +36,7 @@ class TriggerDeploy:
         )
         deployment = await self._repo.save(deployment)
 
-        asyncio.create_task(self._runner.run(deployment.id, branch))
+        asyncio.create_task(self._runner.run(deployment.id, branch, acted_by=acted_by))
 
         return self._to_dto(deployment)
 
@@ -103,7 +103,7 @@ class GetRecentDeployments:
             DeployStatusDTO(
                 id=d.id, branch=d.branch, commit_sha=d.commit_sha,
                 status=d.status.value, rolled_back=d.rolled_back,
-                commit_messages=d.commit_messages,
+                acted_by=d.acted_by, commit_messages=d.commit_messages,
                 started_at=d.started_at, finished_at=d.finished_at,
             )
             for d in deps

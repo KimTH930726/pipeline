@@ -35,7 +35,7 @@ class BuildProcessRunner:
         self._event_bus = event_bus
         self._git = git_repo
 
-    async def run(self, deployment_id: int, branch: str, is_rollback: bool = False) -> None:
+    async def run(self, deployment_id: int, branch: str, is_rollback: bool = False, acted_by: str | None = None) -> None:
         dep_id_str = str(deployment_id)
         full_log: list[str] = []
 
@@ -101,6 +101,7 @@ class BuildProcessRunner:
                 deployment_id=deployment_id,
                 branch=branch,
                 commit_sha=merge_sha,
+                acted_by=acted_by,
             ))
 
         except Exception as exc:
@@ -257,6 +258,7 @@ class BuildProcessRunner:
             deployment_id=deployment_id,
             branch=dep.branch if dep else "",
             commit_sha=dep.commit_sha if dep else None,
+            acted_by=dep.acted_by if dep else None,
             exit_code=exit_code,
             rca_report=rca_dict,
         ))

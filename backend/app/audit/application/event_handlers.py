@@ -22,6 +22,7 @@ class AuditEventHandler:
             event_type="DEPLOY",
             branch=event.branch,
             commit_sha=getattr(event, "commit_sha", None),
+            acted_by=getattr(event, "acted_by", None),
             metadata={"deployment_id": event.deployment_id, "result": "SUCCESS"},
         )
         # 배포 성공 시 리뷰 상태 초기화 (재승인 필요)
@@ -32,6 +33,7 @@ class AuditEventHandler:
             event_type="FAILURE",
             branch=event.branch,
             commit_sha=getattr(event, "commit_sha", None),
+            acted_by=getattr(event, "acted_by", None),
             ai_report=getattr(event, "rca_report", None),
             metadata={
                 "deployment_id": event.deployment_id,
@@ -44,6 +46,7 @@ class AuditEventHandler:
             event_type="ROLLBACK",
             branch=event.branch,
             commit_sha=getattr(event, "new_commit_sha", None),
+            acted_by=getattr(event, "acted_by", None),
             metadata={
                 "reverted_to": getattr(event, "target_sha", None),
                 "new_commit": getattr(event, "new_commit_sha", None),
@@ -66,6 +69,7 @@ class AuditEventHandler:
         event_type: str,
         branch: str,
         commit_sha: str | None = None,
+        acted_by: str | None = None,
         ai_report: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
@@ -76,6 +80,7 @@ class AuditEventHandler:
                 event_type=event_type,
                 branch=branch,
                 commit_sha=commit_sha,
+                acted_by=acted_by,
                 ai_report=ai_report,
                 metadata=metadata,
             )

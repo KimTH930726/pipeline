@@ -9,6 +9,7 @@ class AuditEntry:
     event_type: str
     branch: str
     commit_sha: str | None = None
+    acted_by: str | None = None
     ai_report: dict | None = None
     metadata: dict | None = None
     prev_hash: str | None = None

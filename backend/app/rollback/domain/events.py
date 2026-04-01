@@ -10,3 +10,4 @@ class RollbackExecuted(DomainEvent):
     target_sha: str = ""
     new_commit_sha: str | None = None
     deployment_id: int | None = None
+    acted_by: str | None = None
