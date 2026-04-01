@@ -8,7 +8,7 @@ export default function BranchPage() {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [baseBranch, setBaseBranch] = useState('');
+  const [baseBranch, setBaseBranch] = useState('main');
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
