@@ -10,7 +10,7 @@ from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRe
 from app.auth.dependencies import get_current_user
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.config import settings
-from app.auth.service import get_user_api_key
+from app.auth.service import get_user_by_id, get_user_api_key
 from fastapi import HTTPException
 
 router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
@@ -75,7 +75,8 @@ async def analyze_sandbox_error(
             except Exception:
                 pass
 
-    user_key = await get_user_api_key(db, user["id"])
+    user_obj = await get_user_by_id(db, user["id"])
+    user_key = get_user_api_key(user_obj) if user_obj else None
     llm = VPCLLMAdapter(settings.LLM_ENDPOINT, api_key=user_key or settings.LLM_API_KEY)
     rca = await llm.analyze_failure(error_context)
     return {
