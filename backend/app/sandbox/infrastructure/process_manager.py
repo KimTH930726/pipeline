@@ -46,17 +46,17 @@ class SandboxProcessManager:
             if process.returncode != 0 or not Path(f"{sandbox_dir}/backend").exists():
                 return False, f"브랜치 '{branch}' 소스 추출 실패: {stderr.decode()}"
 
-            # 2-1. 프론트엔드 빌드 (이미지 내 node_modules 활용)
+            # 2-1. 프론트엔드 빌드 (배포 대상의 node_modules + node 이미지 활용)
             host_frontend_src = f"{host_sandbox_dir}/frontend-react"
+            host_deploy_modules = f"{settings.DEPLOY_TARGET_PATH}/frontend-react/node_modules"
             if Path(f"{sandbox_dir}/frontend-react").exists():
                 build_cmd = (
                     f"docker run --rm "
                     f"-v {host_frontend_src}:/build-src "
-                    f"-w /app "
-                    f"smagentlab-frontend:latest "
-                    f"sh -c 'cp -r /build-src/src /app/src 2>/dev/null; "
-                    f"cp /build-src/index.html /app/index.html 2>/dev/null; "
-                    f"npm run build 2>&1 && cp -r /app/dist /build-src/dist'"
+                    f"-v {host_deploy_modules}:/build-src/node_modules "
+                    f"-w /build-src "
+                    f"node:20-alpine "
+                    f"sh -c 'npm run build'"
                 )
                 process = await asyncio.create_subprocess_shell(
                     build_cmd,
@@ -65,7 +65,7 @@ class SandboxProcessManager:
                 )
                 stdout, stderr = await process.communicate()
                 if process.returncode != 0:
-                    logger.warning("Frontend build failed (패키지 변경 시 정상): %s", stderr.decode()[:200])
+                    return False, f"프론트엔드 빌드 실패: {stdout.decode()[-500:]}{stderr.decode()[-500:]}"
 
             # 3. 환경변수 추출 (.env 파일에서)
             env_flags = (
