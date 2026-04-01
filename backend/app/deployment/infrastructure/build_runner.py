@@ -35,7 +35,7 @@ class BuildProcessRunner:
         self._event_bus = event_bus
         self._git = git_repo
 
-    async def run(self, deployment_id: int, branch: str) -> None:
+    async def run(self, deployment_id: int, branch: str, is_rollback: bool = False) -> None:
         dep_id_str = str(deployment_id)
         full_log: list[str] = []
 
@@ -53,11 +53,13 @@ class BuildProcessRunner:
                 return
             await self._stage(dep_id_str, "BUILD_VALIDATION", "completed")
 
-            # ── Step 2: main 머지 ──
+            # ── Step 2: main 머지 (원복 배포 시 스킵) ──
             await self._stage(dep_id_str, "MERGE", "started")
-            await self._log(dep_id_str, full_log, "[PIPELINE] main 브랜치에 머지 중...")
             merge_sha = None
-            if self._git:
+            if is_rollback:
+                await self._log(dep_id_str, full_log, "[PIPELINE] 원복 배포 — 머지 스킵 (이미 revert 완료)")
+            elif self._git:
+                await self._log(dep_id_str, full_log, "[PIPELINE] main 브랜치에 머지 중...")
                 try:
                     merge_sha = self._git.merge_to_main(branch)
                     await self._log(dep_id_str, full_log, f"[PIPELINE] 머지 완료: {merge_sha[:8]}")

@@ -45,7 +45,7 @@ class ExecuteRollback:
         )
         deployment = await self._deploy_repo.save(deployment)
 
-        asyncio.create_task(self._runner.run(deployment.id, branch))
+        asyncio.create_task(self._runner.run(deployment.id, branch, is_rollback=True))
 
         await self._event_bus.publish(RollbackExecuted(
             branch=branch,
