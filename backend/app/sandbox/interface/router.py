@@ -77,7 +77,7 @@ async def analyze_sandbox_error(
 
     user_obj = await get_user_by_id(db, user["id"])
     user_key = get_user_api_key(user_obj) if user_obj else None
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT, api_key=user_key or settings.LLM_API_KEY)
+    llm = VPCLLMAdapter(settings.LLM_ENDPOINT, user_api_key=user_key or settings.LLM_API_KEY)
     rca = await llm.analyze_failure(error_context)
     return {
         "root_cause": rca.root_cause,
