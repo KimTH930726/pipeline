@@ -17,8 +17,15 @@ export interface DeployPage {
 export const fetchRecentDeploys = (page = 1, size = 10, branch?: string, status?: string) =>
   client.get<DeployPage>('/deploy/recent', { params: { page, size, ...(branch ? { branch } : {}), ...(status ? { status } : {}) } }).then(r => r.data);
 
+export interface RollbackResult {
+  status: string;
+  reverted_to: string;
+  new_commit: string;
+  deployment_id: number | null;
+}
+
 export const triggerRollback = (branch: string, target_sha?: string) =>
-  client.post('/rollback/', { branch, target_sha }).then(r => r.data);
+  client.post<RollbackResult>('/rollback/', { branch, target_sha }).then(r => r.data);
 
 export const markRolledBack = (id: number) =>
   client.post(`/deploy/status/${id}/rolled-back`).then(r => r.data);

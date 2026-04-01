@@ -56,19 +56,27 @@ class TriggerDeploy:
 
 
 class GetDeployment:
-    def __init__(self, repo: DeploymentRepositoryPort) -> None:
+    def __init__(self, repo: DeploymentRepositoryPort, git_repo: GitRepositoryPort | None = None) -> None:
         self._repo = repo
+        self._git = git_repo
 
     async def execute(self, deployment_id: int) -> DeployDetailDTO | None:
         dep = await self._repo.find_by_id(deployment_id)
         if not dep:
             return None
+        changed_files: list[str] = []
+        if self._git and dep.commit_sha:
+            try:
+                changed_files = self._git.get_commit_changed_files(dep.commit_sha)
+            except Exception:
+                pass
         return DeployDetailDTO(
             id=dep.id, branch=dep.branch, commit_sha=dep.commit_sha,
             status=dep.status.value, rolled_back=dep.rolled_back,
             acted_by=dep.acted_by, commit_messages=dep.commit_messages,
             started_at=dep.started_at, finished_at=dep.finished_at,
             build_log=dep.build_log, error_log=dep.error_log,
+            changed_files=changed_files,
         )
 
 

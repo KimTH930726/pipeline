@@ -50,7 +50,7 @@ def _trigger_uc(
 
 
 def _get_uc(db: AsyncSession = Depends(get_db)) -> GetDeployment:
-    return GetDeployment(SQLAlchemyDeploymentRepository(db))
+    return GetDeployment(SQLAlchemyDeploymentRepository(db), git_repo=get_git_repo())
 
 
 def _recent_uc(db: AsyncSession = Depends(get_db)) -> GetRecentDeployments:

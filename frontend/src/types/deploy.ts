@@ -13,6 +13,7 @@ export interface DeployStatus {
 export interface DeployDetail extends DeployStatus {
   build_log: string | null;
   error_log: string | null;
+  changed_files: string[];
 }
 
 export interface BuildLogMessage {

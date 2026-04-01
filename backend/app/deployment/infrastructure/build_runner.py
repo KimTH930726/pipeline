@@ -148,6 +148,13 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
+        # Docker 빌드 전 main checkout 보장 (머지/원복 후 다른 브랜치에 남아있을 수 있음)
+        checkout_proc = await asyncio.create_subprocess_exec(
+            "git", "-C", settings.DEPLOY_COMPOSE_PATH, "checkout", "main",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        await checkout_proc.communicate()
+
         compose_dir = settings.DEPLOY_COMPOSE_PATH
         host_compose = f"{compose_dir}/{settings.DEPLOY_COMPOSE_FILE}"
         compose_base = ["docker", "compose", "-f", host_compose, "-p", settings.DEPLOY_COMPOSE_PROJECT]

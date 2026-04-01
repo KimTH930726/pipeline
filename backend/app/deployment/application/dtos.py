@@ -23,6 +23,7 @@ class DeployStatusDTO(BaseModel):
 class DeployDetailDTO(DeployStatusDTO):
     build_log: str | None = None
     error_log: str | None = None
+    changed_files: list[str] = []
 
 
 class DeployPageDTO(BaseModel):

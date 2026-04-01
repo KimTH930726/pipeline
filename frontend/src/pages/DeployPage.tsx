@@ -180,10 +180,28 @@ export default function DeployPage() {
     if (!confirm(`배포 #${expandedDetail.id} (${expandedDetail.branch})를 원복하시겠습니까?`)) return;
     setRollingBack(true);
     try {
-      await triggerRollback(expandedDetail.branch, expandedDetail.commit_sha || undefined);
+      const result = await triggerRollback(expandedDetail.branch, expandedDetail.commit_sha || undefined);
       await markRolledBack(expandedDetail.id);
       setExpandedDetail({ ...expandedDetail, rolled_back: true });
       loadDeploys(currentPage);
+
+      // 원복 재배포 파이프라인 UI 연결
+      if (result.deployment_id) {
+        startPipeline();
+        updateStage('CONFLICT_CHECK', 'completed');
+        setDeployment({
+          id: result.deployment_id,
+          branch: expandedDetail.branch,
+          commit_sha: result.new_commit,
+          status: 'BUILDING',
+          rolled_back: false,
+          acted_by: null,
+          commit_messages: `[원복] ${result.reverted_to.slice(0, 8)} 으로 되돌림`,
+          started_at: new Date().toISOString(),
+          finished_at: null,
+        });
+        setTimeout(() => pipelineRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
     } catch (err) {
       console.error('Rollback failed:', err);
     } finally {
@@ -453,6 +471,22 @@ export default function DeployPage() {
                               시작: {expandedDetail.started_at ? new Date(expandedDetail.started_at).toLocaleString('ko-KR') : '-'} |
                               종료: {expandedDetail.finished_at ? new Date(expandedDetail.finished_at).toLocaleString('ko-KR') : '-'}
                             </div>
+                            {expandedDetail.commit_messages && (
+                              <div className="mb-3">
+                                <p className="text-xs font-medium text-gray-500 mb-1">커밋 메시지</p>
+                                <p className="text-sm text-gray-700 font-mono bg-white rounded p-2 border border-gray-200">{expandedDetail.commit_messages}</p>
+                              </div>
+                            )}
+                            {expandedDetail.changed_files.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs font-medium text-gray-500 mb-1">변경 파일 ({expandedDetail.changed_files.length}개)</p>
+                                <div className="bg-white rounded border border-gray-200 divide-y divide-gray-100">
+                                  {expandedDetail.changed_files.map((f, i) => (
+                                    <p key={i} className="text-xs font-mono text-gray-700 px-3 py-1.5">{f}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             {expandedDetail.build_log && (
                               <BuildLogStream lines={expandedDetail.build_log.split('\n')} />
                             )}

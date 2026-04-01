@@ -67,7 +67,7 @@ class GitPythonRepository(GitRepositoryPort):
         from app.git.domain.exceptions import BranchNotFound
         if branch not in self._branch_names():
             raise BranchNotFound(branch)
-        output = self._repo.git.diff("--name-status", f"main...{branch}")
+        output = self._repo.git.diff("--name-status", f"main..{branch}")
         if not output.strip():
             return []
         changes = []
@@ -76,6 +76,13 @@ class GitPythonRepository(GitRepositoryPort):
             if len(parts) == 2:
                 changes.append(FileChange(status=parts[0], path=parts[1]))
         return changes
+
+    def get_commit_changed_files(self, commit_sha: str) -> list[str]:
+        try:
+            output = self._repo.git.diff_tree("--no-commit-id", "--name-only", "-r", commit_sha)
+            return [f for f in output.strip().split("\n") if f.strip()] if output.strip() else []
+        except Exception:
+            return []
 
     def get_diff(self, branch: str, file_path: str) -> str:
         return self._repo.git.diff("main", branch, "--", file_path)
@@ -250,7 +257,8 @@ class GitPythonRepository(GitRepositoryPort):
                 raise BranchNotFound(branch)
 
             def _merge():
-                self._repo.git.merge(branch, "--no-ff", "-m", f"Merge branch '{branch}' into main")
+                self._repo.git.merge(branch, "--squash")
+                self._repo.git.commit("-m", f"Merge branch '{branch}' into main")
                 return self._repo.head.commit.hexsha
 
             return self._with_main_checkout(_merge)
@@ -286,11 +294,7 @@ class GitPythonRepository(GitRepositoryPort):
     def revert_to(self, branch: str, target_sha: str) -> str:
         with self._lock:
             def _revert():
-                head = self._repo.head.commit
-                if len(head.parents) > 1:
-                    self._repo.git.revert("--no-edit", "-m", "1", head.hexsha)
-                else:
-                    self._repo.git.revert("--no-edit", head.hexsha)
+                self._repo.git.revert("--no-edit", "HEAD")
                 return self._repo.head.commit.hexsha
 
             return self._with_main_checkout(_revert)

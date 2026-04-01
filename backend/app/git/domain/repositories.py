@@ -56,3 +56,7 @@ class GitRepositoryPort(ABC):
     def merge_to_main(self, branch: str) -> str:
         """Merge branch into main. Returns new main commit SHA."""
         ...
+
+    def get_commit_changed_files(self, commit_sha: str) -> list[str]:
+        """Get list of changed file paths in a specific commit."""
+        return []
