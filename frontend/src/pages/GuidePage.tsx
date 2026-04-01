@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Copy, Check, Terminal, GitBranch, Code, Rocket, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, Check, Terminal, GitBranch, Code, Rocket, ChevronDown, ChevronRight, Box, ClipboardList } from 'lucide-react';
 import Header from '../components/layout/Header';
 import client from '../api/client';
 
@@ -111,7 +111,20 @@ export default function GuidePage() {
           </div>
         </Step>
 
-        <Step number={5} title="코드 리뷰 & 승인" icon={Code}>
+        <Step number={5} title="샌드박스 테스트 (선택)" icon={Box}>
+          <p className="text-sm text-gray-600 mt-3">배포 전 브랜치별 독립 환경에서 미리 확인할 수 있습니다.</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+            <p>1. 사이드바 → <strong>샌드박스</strong></p>
+            <p>2. 브랜치 선택 → <strong>샌드박스 생성</strong> 클릭</p>
+            <p>3. Backend/Frontend 포트 할당 → 브라우저에서 확인</p>
+            <p>4. 확인 후 <strong>삭제</strong> (배포 성공 시 자동 삭제됨)</p>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-700">
+            <strong>제한:</strong> 패키지(pip/npm) 추가가 필요한 변경은 샌드박스에서 동작하지 않습니다. 로컬에서 테스트 후 이미지 재빌드가 필요합니다.
+          </div>
+        </Step>
+
+        <Step number={6} title="코드 리뷰 & 승인" icon={Code}>
           <p className="text-sm text-gray-600 mt-3">포탈에서 변경사항을 확인하고 승인받으세요.</p>
           <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
             <p>1. 사이드바 → <strong>코드 리뷰</strong></p>
@@ -119,28 +132,43 @@ export default function GuidePage() {
             <p>3. <strong>AI 영향도 분석</strong> 또는 <strong>AI 코드 리뷰</strong> 실행 (선택)</p>
             <p>4. 리뷰어에게 <strong>승인</strong> 요청</p>
           </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+            <strong>참고:</strong> 배포 성공 시 승인 상태가 자동 초기화됩니다. 새 커밋 후 재승인이 필요합니다.
+          </div>
         </Step>
 
-        <Step number={6} title="배포" icon={Rocket}>
-          <p className="text-sm text-gray-600 mt-3">승인된 브랜치를 배포합니다.</p>
+        <Step number={7} title="배포" icon={Rocket}>
+          <p className="text-sm text-gray-600 mt-3">승인된 브랜치를 배포합니다. 4단계 파이프라인이 실시간으로 표시됩니다.</p>
           <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
             <p>1. 사이드바 → <strong>배포</strong></p>
-            <p>2. 승인된 브랜치 선택 → 변경사항 확인</p>
-            <p>3. <strong>배포 실행</strong> 클릭</p>
-            <p>4. 실시간 빌드 로그 확인</p>
-            <p>5. 성공 시 → main 자동 머지 + Docker 재기동</p>
-            <p>6. 실패 시 → AI 원인 분석 + 원복 가능</p>
+            <p>2. 승인된 브랜치 선택 → <strong>배포 실행</strong> 클릭</p>
+            <p>3. 파이프라인 진행: <strong>충돌 확인</strong> → <strong>빌드 검증</strong> → <strong>main 머지</strong> → <strong>Docker 재기동</strong></p>
+            <p>4. 충돌 발생 시 → AI 해결안 제시 → 승인 후 자동 배포</p>
+            <p>5. 성공 시 → 승인 초기화 + 샌드박스 자동 삭제</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
             <strong>주의:</strong> main 브랜치에 직접 push 하지 마세요. 반드시 브랜치 → 리뷰 → 배포 경로를 따르세요.
           </div>
         </Step>
 
-        <Step number={7} title="설정" icon={Code}>
+        <Step number={8} title="배포 이력 & 원복" icon={ClipboardList}>
+          <p className="text-sm text-gray-600 mt-3">배포 이력을 조회하고, 필요 시 원복합니다.</p>
+          <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+            <p>1. 사이드바 → <strong>배포 이력</strong></p>
+            <p>2. 상태/날짜 필터로 검색 → 항목 클릭 시 상세 (커밋, 변경 파일, 빌드 로그)</p>
+            <p>3. <strong>원복 실행</strong> → git revert + Docker 자동 재기동</p>
+            <p>4. 원복 후 같은 브랜치 재배포 가능</p>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-700">
+            <strong>참고:</strong> 원복으로 인한 재배포에는 "원복 배포" 태그가 표시되며, 재원복은 지원되지 않습니다.
+          </div>
+        </Step>
+
+        <Step number={9} title="설정" icon={Code}>
           <p className="text-sm text-gray-600 mt-3">개인 설정을 관리합니다.</p>
           <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
             <p>• 사이드바 하단 <strong>톱니바퀴</strong> → LLM API Key 등록, 비밀번호 변경</p>
-            <p>• AI 영향도 분석, 코드 리뷰, 실패 분석을 사용하려면 API Key가 필요합니다</p>
+            <p>• AI 영향도 분석, 코드 리뷰, 충돌 해결, 실패 분석을 사용하려면 API Key가 필요합니다</p>
           </div>
         </Step>
       </div>

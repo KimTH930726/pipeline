@@ -5,8 +5,8 @@ const links = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
   { to: '/branches', icon: GitBranch, label: '브랜치 관리' },
   { to: '/review', icon: GitPullRequest, label: '코드 리뷰' },
-  { to: '/deploy', icon: Play, label: '배포' },
   { to: '/sandbox', icon: Box, label: '샌드박스' },
+  { to: '/deploy', icon: Play, label: '배포' },
   { to: '/history', icon: ClipboardList, label: '배포 이력' },
   { to: '/guide', icon: BookOpen, label: '시작 가이드' },
 ];
