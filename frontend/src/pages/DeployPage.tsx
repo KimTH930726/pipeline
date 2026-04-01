@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import Header from '../components/layout/Header';
 import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
@@ -418,9 +418,8 @@ export default function DeployPage() {
             </thead>
             <tbody>
               {deployPage.items.map((d) => (
-                <>
+                <Fragment key={d.id}>
                   <tr
-                    key={d.id}
                     className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors ${
                       expandedId === d.id ? 'bg-blue-50' : ''
                     }`}
@@ -460,7 +459,7 @@ export default function DeployPage() {
                   </tr>
                   {/* 토글 상세 */}
                   {expandedId === d.id && (
-                    <tr key={`detail-${d.id}`}>
+                    <tr>
                       <td colSpan={compareMode ? 8 : 7} className="p-4 bg-gray-50 border-b">
                         {loadingDetail ? (
                           <p className="text-sm text-gray-500">로딩 중...</p>
@@ -517,7 +516,7 @@ export default function DeployPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

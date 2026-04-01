@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.config import settings
-from app.deployment.domain.entities import Deployment, DeploymentStatus
+from app.deployment.domain.entities import DeploymentStatus
 from app.deployment.domain.events import DeploymentSucceeded, DeploymentFailed
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.websocket_manager import ws_manager

@@ -159,18 +159,21 @@ export default function DashboardPage() {
                       <span className="text-gray-400">&rarr;</span>
                       <span className="font-mono text-gray-600">main</span>
                     </div>
-                    {d.commit_messages && (
-                      <div className="mt-1 space-y-0.5">
-                        {d.commit_messages.split('\n').slice(0, 3).map((msg, i) => (
-                          <p key={i} className="text-xs text-gray-500 truncate max-w-md">
-                            <span className="text-gray-400 mr-1">&bull;</span>{msg}
-                          </p>
-                        ))}
-                        {d.commit_messages.split('\n').length > 3 && (
-                          <p className="text-xs text-gray-400">...외 {d.commit_messages.split('\n').length - 3}건</p>
-                        )}
-                      </div>
-                    )}
+                    {d.commit_messages && (() => {
+                      const lines = d.commit_messages.split('\n');
+                      return (
+                        <div className="mt-1 space-y-0.5">
+                          {lines.slice(0, 3).map((msg, i) => (
+                            <p key={i} className="text-xs text-gray-500 truncate max-w-md">
+                              <span className="text-gray-400 mr-1">&bull;</span>{msg}
+                            </p>
+                          ))}
+                          {lines.length > 3 && (
+                            <p className="text-xs text-gray-400">...외 {lines.length - 3}건</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div className="text-xs text-gray-400 mt-0.5">
                       {d.acted_by && <span className="mr-2 text-gray-500">{d.acted_by}</span>}
                       {d.started_at ? new Date(d.started_at).toLocaleString('ko-KR') : '-'}

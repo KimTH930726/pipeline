@@ -42,7 +42,7 @@ class SandboxProcessManager:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await process.communicate()
+            _, stderr = await process.communicate()
             if process.returncode != 0 or not Path(f"{sandbox_dir}/backend").exists():
                 return False, f"브랜치 '{branch}' 소스 추출 실패: {stderr.decode()}"
 
@@ -57,7 +57,7 @@ class SandboxProcessManager:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                stdout, stderr = await process.communicate()
+                _, stderr = await process.communicate()
                 if process.returncode != 0:
                     return False, f"프론트엔드 빌드 실패: {stderr.decode()[-500:]}"
 
@@ -111,7 +111,7 @@ class SandboxProcessManager:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                stdout, stderr = await process.communicate()
+                _, stderr = await process.communicate()
                 if process.returncode != 0:
                     return False, f"{cmd_name} 컨테이너 기동 실패: {stderr.decode()}"
 

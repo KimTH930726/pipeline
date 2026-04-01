@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 
 interface Props {
   originalContent: string;
@@ -30,9 +30,9 @@ export default function ConflictDiffViewer({ originalContent, resolvedContent }:
     requestAnimationFrame(() => { syncing.current = false; });
   }, []);
 
-  const origLines = originalContent.split('\n');
-  const resLines = resolvedContent.split('\n');
-  const { origHighlight, resHighlight } = diffLines(origLines, resLines);
+  const origLines = useMemo(() => originalContent.split('\n'), [originalContent]);
+  const resLines = useMemo(() => resolvedContent.split('\n'), [resolvedContent]);
+  const { origHighlight, resHighlight } = useMemo(() => diffLines(origLines, resLines), [origLines, resLines]);
 
   const lineNumWidth = Math.max(origLines.length, resLines.length).toString().length * 0.6 + 1;
 

@@ -50,7 +50,7 @@ class GitPythonRepository(GitRepositoryPort):
                     last_commit_sha=b.commit.hexsha[:8],
                     last_commit_message=b.commit.message.strip()[:100],
                 ))
-            except (ValueError, Exception) as e:
+            except Exception as e:
                 logger.warning("Skipping invalid branch ref: %s", e)
         return branches
 
@@ -59,7 +59,7 @@ class GitPythonRepository(GitRepositoryPort):
         for b in self._repo.branches:
             try:
                 names.append(b.name)
-            except (ValueError, Exception):
+            except Exception:
                 pass
         return names
 
