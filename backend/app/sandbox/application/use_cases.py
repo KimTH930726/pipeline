@@ -108,7 +108,7 @@ class ListSandboxes:
             SandboxResponseDTO(
                 id=s.id, branch=s.branch,
                 backend_port=s.backend_port, frontend_port=s.frontend_port,
-                status=s.status.value,
+                status=s.status.value, error_log=s.error_log,
             )
             for s in sandboxes
         ]

@@ -115,7 +115,6 @@ export default function BranchPage() {
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b bg-gray-50">
                 <th className="px-4 py-3 font-medium">브랜치</th>
-                <th className="px-4 py-3 font-medium">상태</th>
                 <th className="px-4 py-3 font-medium">최근 커밋</th>
                 <th className="px-4 py-3 font-medium">커밋 메시지</th>
                 <th className="px-4 py-3 font-medium"></th>
@@ -126,13 +125,6 @@ export default function BranchPage() {
                 <tr key={b.name} className="border-b last:border-b-0 hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-sm">
                     {b.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    {b.is_active ? (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">active</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">inactive</span>
-                    )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">
                     {b.last_commit_sha || '-'}
