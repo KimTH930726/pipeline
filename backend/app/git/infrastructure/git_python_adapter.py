@@ -220,34 +220,14 @@ class GitPythonRepository(GitRepositoryPort):
             pass
 
     def _with_main_checkout(self, operation):
-        """Execute operation on main branch with stash/checkout/restore pattern."""
+        """Execute operation on main branch. Stays on main after completion."""
         self._cleanup_index()
-        original = (
-            self._repo.active_branch.name
-            if not self._repo.head.is_detached
-            else None
-        )
-        stashed = False
         try:
-            self._repo.git.stash("push", "-m", "auto-stash")
-            stashed = True
+            self._repo.git.checkout("-f", "main")
         except Exception:
-            logger.debug("Nothing to stash")
-
-        try:
+            self._repo.git.stash("push", "-m", "auto-stash")
             self._repo.git.checkout("main")
-            return operation()
-        finally:
-            if original and original != "main":
-                try:
-                    self._repo.git.checkout(original)
-                except Exception:
-                    logger.warning("Failed to checkout back to %s", original)
-            if stashed:
-                try:
-                    self._repo.git.stash("pop")
-                except Exception:
-                    logger.warning("Failed to pop stash")
+        return operation()
 
     def merge_to_main(self, branch: str) -> str:
         from app.git.domain.exceptions import BranchNotFound

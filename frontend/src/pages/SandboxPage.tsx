@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { Box, Trash2, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -23,6 +23,8 @@ export default function SandboxPage() {
   const [creating, setCreating] = useState(false);
   const [analyzing, setAnalyzing] = useState<number | null>(null);
   const [analysisResult, setAnalysisResult] = useState<Record<number, { root_cause: string; suggested_fix: string }>>({});
+  const [filterBranch, setFilterBranch] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(() => {
     client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
@@ -123,9 +125,26 @@ export default function SandboxPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {sandboxes.map((s) => (
-          <div key={s.id} className={`bg-white border rounded-xl p-5 ${s.status === 'CREATING' ? 'border-yellow-300' : 'border-gray-200'}`}>
+      {sandboxes.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs text-gray-500">브랜치 필터:</span>
+          <select
+            value={filterBranch}
+            onChange={(e) => { setFilterBranch(e.target.value); setTimeout(() => scrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' }), 100); }}
+            className="px-2 py-1 text-xs border border-gray-300 rounded bg-white"
+          >
+            <option value="">전체</option>
+            {[...new Set(sandboxes.map((s) => s.branch))].map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+          <span className="text-xs text-gray-400">{sandboxes.filter((s) => !filterBranch || s.branch === filterBranch).length}개</span>
+        </div>
+      )}
+
+      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
+        {sandboxes.filter((s) => !filterBranch || s.branch === filterBranch).map((s) => (
+          <div key={s.id} className={`bg-white border rounded-xl p-5 min-w-[400px] max-w-[450px] flex-shrink-0 snap-start ${s.status === 'CREATING' ? 'border-yellow-300' : 'border-gray-200'}`}>
             {s.status === 'CREATING' && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -230,10 +249,10 @@ export default function SandboxPage() {
             </div>
           </div>
         ))}
-        {sandboxes.length === 0 && (
-          <p className="col-span-2 text-sm text-gray-400 text-center py-8">활성 샌드박스가 없습니다.</p>
-        )}
       </div>
+      {sandboxes.length === 0 && (
+        <p className="text-sm text-gray-400 text-center py-8">활성 샌드박스가 없습니다.</p>
+      )}
 
       <div className="mt-6 space-y-3">
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
