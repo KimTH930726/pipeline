@@ -34,10 +34,10 @@ backend/app/<context>/
 | **git** | 브랜치 CRUD, diff(`main..branch`), squash merge(fallback checkout), revert HEAD, 충돌 감지/해결, 배포간 diff |
 | **review** | 코드 리뷰 승인/반려 + acted_by 추적, 배포 성공 시 PENDING 자동 초기화 |
 | **deployment** | 빌드→충돌체크→squash 머지→Docker 재기동(backend restart/frontend --no-cache rebuild), 이력(상태+날짜 필터, 페이징), 배포 비교, 파이프라인 4단계 실시간 UI, 배포 성공 시 샌드박스 자동 삭제 |
-| **analysis** | AI 영향도 + AI 코드리뷰 + 머지 충돌 AI 해결 + RCA + 수정 프롬프트 |
+| **analysis** | AI 영향도 + AI 코드리뷰 + 머지 충돌 AI 해결(LLM 실패 시 수기 보정 유도) + RCA + 수정 프롬프트 |
 | **rollback** | git revert HEAD + 자동 재배포(머지 스킵), 원복 배포 구분 태그, 원복 배포에 재원복 방지 |
 | **sandbox** | 브랜치별 Docker 컨테이너 (backend+frontend, 동적 포트, 컨테이너 내부 docker build) |
-| **audit** | SHA-256 해시체인 감사 로그 (브랜치/이벤트 필터, 페이징) |
+| **audit** | SHA-256 해시체인 감사 로그 (브랜치/이벤트 필터, 페이징, acted_by 추적) |
 
 ### Key Patterns
 - **GitPythonRepository 싱글턴** + `_with_main_checkout()` 헬퍼 (stash/checkout/restore 공통화)
@@ -95,6 +95,19 @@ Audit:    GET  /api/audit/timeline?branch=&event_type=&limit=&offset=
 | `stage` | {stage, status} | 파이프라인 단계 진행 (BUILD_VALIDATION/MERGE/DOCKER_RESTART × started/completed/failed) |
 | `log_line` | string | 빌드 로그 실시간 라인 |
 | `rca` | RCAReport | 실패 시 AI 원인 분석 |
+
+## Frontend Pages
+| Route | Page | 설명 |
+|-------|------|------|
+| `/` | DashboardPage | 배포 현황 카드 + 이력 (상태/날짜 필터, 페이징) |
+| `/branches` | BranchPage | 브랜치 생성/삭제/목록 |
+| `/review` | ReviewPage | 코드 리뷰 (AI 분석 + 승인/반려) |
+| `/deploy` | DeployPage | 배포 실행 전용 (충돌체크 → 빌드 → 머지 → 재기동) |
+| `/history` | DeployHistoryPage | 배포 이력 (상세/원복/비교/필터) |
+| `/sandbox` | SandboxPage | 샌드박스 관리 |
+| `/guide` | GuidePage | 시작 가이드 |
+| `/settings` | SettingsPage | 사용자 설정 |
+| `/admin` | AdminPage | 관리자 (사용자 관리) |
 
 ## Database
 SQLite, 5개 테이블: `users`, `deployments`, `reviews`, `audit_logs`, `sandboxes`. Auto-created on startup.
