@@ -90,8 +90,8 @@ if [ -f ".env" ]; then
 else
   echo "  .env 파일 자동 생성 중..."
 
-  # FERNET_SECRET_KEY 자동 생성
-  FERNET_KEY=$(docker run --rm python:3.11-slim python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || echo "")
+  # FERNET_SECRET_KEY 자동 생성 (폐쇄망에서는 pipeline-backend 이미지 활용)
+  FERNET_KEY=$(docker run --rm pipeline-backend:latest python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || echo "")
 
   # JWT_SECRET_KEY 자동 생성
   JWT_KEY=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "change-this-in-production")
@@ -126,6 +126,9 @@ DEPLOY_SERVICE_NAME=backend frontend
 
 # Docker Compose 프로젝트명 (배포 대상)
 DEPLOY_COMPOSE_PROJECT=smagentlab
+
+# 샌드박스 호스트 경로
+SANDBOX_HOST_PATH=/tmp/pipeline-sandboxes
 ENVEOF
 
   echo "  .env 생성 완료"
@@ -133,14 +136,29 @@ ENVEOF
   echo "  JWT_SECRET_KEY: ${JWT_KEY:0:10}..."
 fi
 
-# ─── 4. 서비스 시작 ───
+# ─── 4. SMAgentLab 서비스 기동 (배포 대상) ───
 echo ""
-echo "[4/5] 서비스 시작 중..."
+echo "[4/6] SMAgentLab 서비스 확인..."
+if [ -f "$PROJECT_PATH/docker-compose.yml" ]; then
+  RUNNING=$(docker compose -f "$PROJECT_PATH/docker-compose.yml" -p smagentlab ps -q 2>/dev/null | wc -l)
+  if [ "$RUNNING" -eq 0 ]; then
+    echo "  SMAgentLab 서비스 기동 중..."
+    docker compose -f "$PROJECT_PATH/docker-compose.yml" -p smagentlab up -d
+  else
+    echo "  이미 실행 중 ($RUNNING개 컨테이너)"
+  fi
+else
+  echo "  [경고] $PROJECT_PATH/docker-compose.yml 없음 — SMAgentLab 별도 기동 필요"
+fi
+
+# ─── 5. Pipeline 포탈 시작 ───
+echo ""
+echo "[5/6] Pipeline 포탈 시작 중..."
 docker compose up -d
 
-# ─── 5. 상태 확인 ───
+# ─── 6. 상태 확인 ───
 echo ""
-echo "[5/5] 기동 확인 중..."
+echo "[6/6] 기동 확인 중..."
 docker compose ps
 
 PORTAL_PORT=$(grep PORTAL_PORT .env 2>/dev/null | cut -d= -f2 || echo "8080")

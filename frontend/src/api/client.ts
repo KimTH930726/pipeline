@@ -34,6 +34,9 @@ async function handleResponse<T>(response: Response): Promise<{ data: T }> {
     const error = await response.json().catch(() => ({}));
     return Promise.reject(Object.assign(new Error(response.statusText), { response: { status: response.status, data: error } }));
   }
+  if (response.status === 204) {
+    return { data: undefined as T };
+  }
   const data = await response.json() as T;
   return { data };
 }
