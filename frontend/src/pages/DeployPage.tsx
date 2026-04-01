@@ -44,6 +44,7 @@ export default function DeployPage() {
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
+  const [showBuildLog, setShowBuildLog] = useState(false);
 
   // 배포 비교
   const [compareMode, setCompareMode] = useState(false);
@@ -160,6 +161,7 @@ export default function DeployPage() {
   };
 
   const handleToggleDetail = async (deploy: DeployStatus) => {
+    setShowBuildLog(false);
     if (expandedId === deploy.id) {
       setExpandedId(null);
       setExpandedDetail(null);
@@ -465,29 +467,53 @@ export default function DeployPage() {
                           <p className="text-sm text-gray-500">로딩 중...</p>
                         ) : expandedDetail ? (
                           <div>
-                            <div className="text-xs text-gray-500 mb-3">
-                              커밋: <span className="font-mono">{expandedDetail.commit_sha || '-'}</span> |
-                              시작: {expandedDetail.started_at ? new Date(expandedDetail.started_at).toLocaleString('ko-KR') : '-'} |
-                              종료: {expandedDetail.finished_at ? new Date(expandedDetail.finished_at).toLocaleString('ko-KR') : '-'}
+                            <div className="grid grid-cols-3 gap-3 mb-3 bg-white rounded-lg border border-gray-200 p-3">
+                              <div>
+                                <p className="text-xs text-gray-400">커밋</p>
+                                <p className="font-mono text-sm text-gray-800 mt-0.5">{expandedDetail.commit_sha?.slice(0, 8) || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400">시작</p>
+                                <p className="text-sm text-gray-800 mt-0.5">{expandedDetail.started_at ? new Date(expandedDetail.started_at).toLocaleString('ko-KR') : '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-400">종료</p>
+                                <p className="text-sm text-gray-800 mt-0.5">{expandedDetail.finished_at ? new Date(expandedDetail.finished_at).toLocaleString('ko-KR') : '-'}</p>
+                              </div>
                             </div>
                             {expandedDetail.commit_messages && (
-                              <div className="mb-3">
-                                <p className="text-xs font-medium text-gray-500 mb-1">커밋 메시지</p>
-                                <p className="text-sm text-gray-700 font-mono bg-white rounded p-2 border border-gray-200">{expandedDetail.commit_messages}</p>
+                              <div className="mb-3 bg-white rounded-lg border border-gray-200 p-3">
+                                <p className="text-xs font-medium text-gray-400 mb-1">커밋 메시지</p>
+                                <p className="text-sm text-gray-800 font-mono">{expandedDetail.commit_messages}</p>
                               </div>
                             )}
                             {expandedDetail.changed_files.length > 0 && (
-                              <div className="mb-3">
-                                <p className="text-xs font-medium text-gray-500 mb-1">변경 파일 ({expandedDetail.changed_files.length}개)</p>
-                                <div className="bg-white rounded border border-gray-200 divide-y divide-gray-100">
-                                  {expandedDetail.changed_files.map((f, i) => (
-                                    <p key={i} className="text-xs font-mono text-gray-700 px-3 py-1.5">{f}</p>
-                                  ))}
-                                </div>
+                              <div className="mb-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <p className="text-xs font-medium text-gray-400 px-3 py-2 border-b border-gray-100">변경 파일 ({expandedDetail.changed_files.length}개)</p>
+                                {expandedDetail.changed_files.map((f, i) => (
+                                  <p key={i} className="text-xs font-mono text-gray-700 px-3 py-1.5 border-b border-gray-50 last:border-b-0 hover:bg-blue-50">{f}</p>
+                                ))}
+                              </div>
+                            )}
+                            {expandedDetail.error_log && (
+                              <div className="mb-3 bg-red-50 rounded-lg border border-red-200 p-3">
+                                <p className="text-xs font-medium text-red-500 mb-1">에러</p>
+                                <pre className="text-xs text-red-700 whitespace-pre-wrap">{expandedDetail.error_log}</pre>
                               </div>
                             )}
                             {expandedDetail.build_log && (
-                              <BuildLogStream lines={expandedDetail.build_log.split('\n')} />
+                              <div className="mb-3">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowBuildLog(!showBuildLog); }}
+                                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-2"
+                                >
+                                  <span className={`transition-transform ${showBuildLog ? 'rotate-90' : ''}`}>&#9654;</span>
+                                  빌드 로그 {showBuildLog ? '접기' : '보기'}
+                                </button>
+                                {showBuildLog && (
+                                  <BuildLogStream lines={expandedDetail.build_log.split('\n')} />
+                                )}
+                              </div>
                             )}
                             {(expandedDetail.status === 'SUCCESS' || expandedDetail.status === 'FAILED') && !expandedDetail.rolled_back && !expandedDetail.commit_messages?.startsWith('[원복]') && (
                               <div className="flex items-center gap-4 mt-4 pt-3 border-t">
