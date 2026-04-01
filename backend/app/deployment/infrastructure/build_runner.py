@@ -240,15 +240,19 @@ class BuildProcessRunner:
         })
 
         # RCA 분석
-        rca = await self._llm.analyze_failure(log_text)
-        rca_dict = {
-            "root_cause": rca.root_cause,
-            "affected_files": rca.affected_files,
-            "suggested_fix": rca.suggested_fix,
-            "confidence_score": rca.confidence_score,
-            "ai_fix_prompt": rca.ai_fix_prompt,
-        }
-        await ws_manager.broadcast(dep_id_str, {"type": "rca", "data": rca_dict})
+        rca_dict: dict | None = None
+        try:
+            rca = await self._llm.analyze_failure(log_text)
+            rca_dict = {
+                "root_cause": rca.root_cause,
+                "affected_files": rca.affected_files,
+                "suggested_fix": rca.suggested_fix,
+                "confidence_score": rca.confidence_score,
+                "ai_fix_prompt": rca.ai_fix_prompt,
+            }
+            await ws_manager.broadcast(dep_id_str, {"type": "rca", "data": rca_dict})
+        except Exception:
+            logger.warning("RCA 분석 실패 (deployment %s)", deployment_id, exc_info=True)
         await self._event_bus.publish(DeploymentFailed(
             deployment_id=deployment_id,
             branch=dep.branch if dep else "",

@@ -52,7 +52,7 @@ export default function DashboardPage() {
   };
 
   const cards = [
-    { label: '총 배포', value: deploys.length, icon: GitMerge, color: 'bg-blue-500' },
+    { label: '총 배포', value: deployPage.total, icon: GitMerge, color: 'bg-blue-500' },
     { label: '성공', value: successCount, icon: CheckCircle, color: 'bg-green-500' },
     { label: '실패', value: failCount, icon: XCircle, color: 'bg-red-500' },
     { label: '원복', value: rollbackCount, icon: RotateCcw, color: 'bg-orange-500' },

@@ -38,6 +38,7 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
         if not orm:
             return
         orm.status = deployment.status.value
+        orm.commit_sha = deployment.commit_sha
         orm.build_log = deployment.build_log
         orm.error_log = deployment.error_log
         orm.commit_messages = deployment.commit_messages

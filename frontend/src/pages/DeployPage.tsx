@@ -223,7 +223,7 @@ export default function DeployPage() {
     if (compareSelections.length !== 2) return;
     setComparing(true);
     try {
-      const [a, b] = compareSelections.sort((x, y) => x - y);
+      const [a, b] = [...compareSelections].sort((x, y) => x - y);
       const result = await compareDeploys(a, b);
       setCompareResult(result);
     } catch { setCompareResult(null); }
