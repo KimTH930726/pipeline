@@ -4,24 +4,37 @@ import { GitMerge, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import Header from '../components/layout/Header';
 import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
 import { fetchRecentDeploys, fetchDeployStatus } from '../api/deployApi';
+import type { DeployPage as DeployPageType } from '../api/deployApi';
 import type { DeployStatus, DeployDetail } from '../types/deploy';
 
+const PAGE_SIZE = 10;
+
 export default function DashboardPage() {
-  const [deploys, setDeploys] = useState<DeployStatus[]>([]);
+  const [deployPage, setDeployPage] = useState<DeployPageType>({ items: [], total: 0, page: 1, size: PAGE_SIZE });
+  const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   const loadData = useCallback(() => {
-    fetchRecentDeploys(1, 20, undefined, statusFilter || undefined).then((r) => setDeploys(r.items)).catch(() => {});
-  }, [statusFilter]);
+    fetchRecentDeploys(currentPage, PAGE_SIZE, undefined, statusFilter || undefined).then(setDeployPage).catch(() => {});
+  }, [statusFilter, currentPage]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useAutoRefresh(loadData);
 
+  const deploys = deployPage.items;
+  const totalPages = Math.ceil(deployPage.total / PAGE_SIZE);
+
   const successCount = deploys.filter((d) => d.status === 'SUCCESS').length;
   const failCount = deploys.filter((d) => d.status === 'FAILED').length;
   const rollbackCount = deploys.filter((d) => d.rolled_back).length;
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setExpandedId(null);
+    setExpandedDetail(null);
+  };
 
   const handleToggle = async (d: DeployStatus) => {
     if (expandedId === d.id) {
@@ -172,6 +185,37 @@ export default function DashboardPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 페이징 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30"
+            >
+              이전
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => handlePageChange(p)}
+                className={`px-3 py-1 text-sm border rounded ${
+                  p === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-100'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30"
+            >
+              다음
+            </button>
           </div>
         )}
       </div>
