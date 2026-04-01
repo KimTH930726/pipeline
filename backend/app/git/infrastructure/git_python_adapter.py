@@ -257,8 +257,22 @@ class GitPythonRepository(GitRepositoryPort):
                 raise BranchNotFound(branch)
 
             def _merge():
+                # squash merge 시도
                 self._repo.git.merge(branch, "--squash")
-                self._repo.git.commit("-m", f"Merge branch '{branch}' into main")
+                # 변경사항이 있을 때만 커밋 (원복 후 재배포 시 diff 없으면 patch 적용)
+                diff = self._repo.git.diff("--cached", "--name-only")
+                if diff.strip():
+                    self._repo.git.commit("-m", f"Merge branch '{branch}' into main")
+                else:
+                    # squash가 nothing to commit인 경우 — 실제 diff 확인 후 patch 적용
+                    real_diff = self._repo.git.diff("main", branch)
+                    if real_diff.strip():
+                        self._repo.git.checkout(branch, "--", ".")
+                        self._repo.git.add("-A")
+                        self._repo.git.commit("-m", f"Merge branch '{branch}' into main")
+                    else:
+                        # 실제로 변경사항 없음
+                        return self._repo.head.commit.hexsha
                 return self._repo.head.commit.hexsha
 
             return self._with_main_checkout(_merge)
