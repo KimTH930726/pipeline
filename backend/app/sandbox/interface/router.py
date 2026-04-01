@@ -8,6 +8,7 @@ from app.sandbox.application.dtos import SandboxCreateDTO, SandboxResponseDTO
 from app.sandbox.application.use_cases import CreateSandbox, StopSandbox, DestroySandbox, ListSandboxes
 from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRepository
 from app.auth.dependencies import get_current_user
+from app.shared.infrastructure.deploy_lock import check_no_active_deployment
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.config import settings
 from app.auth.service import get_user_by_id, get_user_api_key
@@ -21,7 +22,8 @@ def _repo(db: AsyncSession = Depends(get_db)) -> SQLAlchemySandboxRepository:
 
 
 @router.post("/", response_model=SandboxResponseDTO)
-async def create_sandbox(req: SandboxCreateDTO, repo=Depends(_repo), user: dict = Depends(get_current_user)):
+async def create_sandbox(req: SandboxCreateDTO, repo=Depends(_repo), db=Depends(get_db), user: dict = Depends(get_current_user)):
+    await check_no_active_deployment(db)
     return await CreateSandbox(repo).execute(req.branch)
 
 

@@ -16,6 +16,7 @@ from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
 from app.auth.dependencies import get_current_user
+from app.shared.infrastructure.deploy_lock import check_no_active_deployment
 
 router = APIRouter(prefix="/api/deploy", tags=["deploy"])
 
@@ -64,6 +65,7 @@ async def trigger_deploy(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    await check_no_active_deployment(db)
     review = await SQLAlchemyReviewRepository(db).find_by_branch(req.branch)
     if not review or not review.is_approved:
         raise HTTPException(status_code=403, detail="Branch not approved for deployment")

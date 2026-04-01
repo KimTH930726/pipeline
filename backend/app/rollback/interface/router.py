@@ -14,6 +14,7 @@ from app.git.infrastructure.git_python_adapter import get_git_repo
 
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.auth.dependencies import get_current_user
+from app.shared.infrastructure.deploy_lock import check_no_active_deployment
 
 router = APIRouter(prefix="/api/rollback", tags=["rollback"])
 
@@ -48,6 +49,8 @@ def _rollback_uc(
 async def trigger_rollback(
     req: RollbackRequestDTO,
     uc: ExecuteRollback = Depends(_rollback_uc),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    await check_no_active_deployment(db)
     return await uc.execute(req.branch, req.target_sha, acted_by=user["username"])
