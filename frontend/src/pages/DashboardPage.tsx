@@ -109,6 +109,7 @@ export default function DashboardPage() {
             <input
               type="date"
               value={dateFrom}
+              max={dateTo || new Date().toISOString().split('T')[0]}
               onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
               className="px-2 py-1 text-xs border border-gray-300 rounded"
             />
@@ -116,9 +117,22 @@ export default function DashboardPage() {
             <input
               type="date"
               value={dateTo}
+              min={dateFrom || undefined}
+              max={new Date().toISOString().split('T')[0]}
               onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
               className="px-2 py-1 text-xs border border-gray-300 rounded"
             />
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                setDateFrom(today);
+                setDateTo(today);
+                setCurrentPage(1);
+              }}
+              className="px-2 py-1 text-xs border border-blue-300 text-blue-600 rounded hover:bg-blue-50"
+            >
+              오늘
+            </button>
             {(dateFrom || dateTo) && (
               <button
                 onClick={() => { setDateFrom(''); setDateTo(''); setCurrentPage(1); }}
