@@ -36,7 +36,7 @@ backend/app/<context>/
 | **deployment** | 빌드→충돌체크→머지→Docker 재기동, 이력(페이징), 배포 비교, acted_by |
 | **analysis** | AI 영향도 + AI 코드리뷰 + 머지 충돌 AI 해결 + RCA + 수정 프롬프트 |
 | **rollback** | git revert -m 1 + 자동 재배포 |
-| **sandbox** | 브랜치별 Docker compose (backend+frontend, 동적 포트) |
+| **sandbox** | 브랜치별 Docker 컨테이너 (backend+frontend, 동적 포트, node:20-alpine 빌드) |
 | **audit** | SHA-256 해시체인 감사 로그 (브랜치/이벤트 필터, 페이징) |
 
 ### Key Patterns
@@ -46,6 +46,7 @@ backend/app/<context>/
 - **LLM**: DevX InHouse API (blocking 모드, Bearer 인증, 사용자별 키)
 - **Auth**: JWT access(8h)/refresh(7d), 회원가입→관리자 승인→활성화
 - **Frontend**: 탭 포커스 시 자동 리로드 (`useAutoRefresh`), 마크다운 렌더링
+- **Sandbox 빌드**: `node:20-alpine` + 배포 대상 `node_modules` 마운트 (폐쇄망 호환, npm install 불필요)
 
 ## Environment Variables
 | Variable | Purpose |
@@ -56,7 +57,7 @@ backend/app/<context>/
 | `LLM_API_KEY` | 시스템 LLM Key (fallback) |
 | `JWT_SECRET_KEY` | JWT 서명 키 |
 | `FERNET_SECRET_KEY` | API Key 암호화 키 (.env로 관리) |
-| `DEPLOY_TARGET_PATH` | 배포 대상 docker-compose 경로 |
+| `DEPLOY_TARGET_PATH` | 배포 대상 호스트 경로 (docker-compose + 샌드박스 node_modules 참조) |
 | `ADMIN_DEFAULT_PASSWORD` | 초기 admin 비밀번호 |
 
 ## API Routes
