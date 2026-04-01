@@ -46,17 +46,11 @@ class SandboxProcessManager:
             if process.returncode != 0 or not Path(f"{sandbox_dir}/backend").exists():
                 return False, f"브랜치 '{branch}' 소스 추출 실패: {stderr.decode()}"
 
-            # 2-1. 프론트엔드 빌드 (배포 대상의 node_modules + node 이미지 활용)
-            host_frontend_src = f"{host_sandbox_dir}/frontend-react"
-            host_deploy_modules = f"{settings.DEPLOY_TARGET_PATH}/frontend-react/node_modules"
+            # 2-1. 프론트엔드 빌드 (docker build — 캐시 레이어 활용, 폐쇄망 호환)
             if Path(f"{sandbox_dir}/frontend-react").exists():
                 build_cmd = (
-                    f"docker run --rm "
-                    f"-v {host_frontend_src}:/build-src "
-                    f"-v {host_deploy_modules}:/build-src/node_modules "
-                    f"-w /build-src "
-                    f"node:20-alpine "
-                    f"sh -c 'npm run build'"
+                    f"docker build -t {frontend_name}:latest "
+                    f"{sandbox_dir}/frontend-react"
                 )
                 process = await asyncio.create_subprocess_shell(
                     build_cmd,
@@ -65,7 +59,7 @@ class SandboxProcessManager:
                 )
                 stdout, stderr = await process.communicate()
                 if process.returncode != 0:
-                    return False, f"프론트엔드 빌드 실패: {stdout.decode()[-500:]}{stderr.decode()[-500:]}"
+                    return False, f"프론트엔드 빌드 실패: {stderr.decode()[-500:]}"
 
             # 3. 환경변수 추출 (.env 파일에서)
             env_flags = (
@@ -92,17 +86,23 @@ class SandboxProcessManager:
                 f"smagentlab-backend:latest"
             )
 
-            # 프론트엔드: 빌드된 dist가 있으면 마운트, 없으면 이미지 그대로
-            frontend_vol = ""
-            if Path(f"{sandbox_dir}/frontend-react/dist").exists():
-                frontend_vol = f"-v {host_frontend_src}/dist:/usr/share/nginx/html "
+            # 프론트엔드: 브랜치별 빌드 이미지 사용 (없으면 기본 이미지)
+            frontend_image = f"{frontend_name}:latest"
+            # 빌드 이미지가 없는 경우 (frontend-react 폴더 미존재 등) 기본 이미지 사용
+            check = await asyncio.create_subprocess_shell(
+                f"docker image inspect {frontend_image} > /dev/null 2>&1",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await check.communicate()
+            if check.returncode != 0:
+                frontend_image = "smagentlab-frontend:latest"
 
             frontend_cmd = (
                 f"docker run -d --name {frontend_name} "
                 f"--network {network} "
                 f"-p {frontend_port}:80 "
-                f"{frontend_vol}"
-                f"smagentlab-frontend:latest"
+                f"{frontend_image}"
             )
 
             for cmd_name, cmd in [("backend", backend_cmd), ("frontend", frontend_cmd)]:
