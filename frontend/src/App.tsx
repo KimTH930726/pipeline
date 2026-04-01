@@ -6,7 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import ReviewPage from './pages/ReviewPage';
 import DeployPage from './pages/DeployPage';
 import SandboxPage from './pages/SandboxPage';
-import AuditPage from './pages/AuditPage';
+import DeployHistoryPage from './pages/DeployHistoryPage';
 import BranchPage from './pages/BranchPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
@@ -30,7 +30,7 @@ export default function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/deploy" element={<DeployPage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
-          <Route path="/audit" element={<AuditPage />} />
+          <Route path="/history" element={<DeployHistoryPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/guide" element={<GuidePage />} />

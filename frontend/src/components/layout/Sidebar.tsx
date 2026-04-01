@@ -7,7 +7,7 @@ const links = [
   { to: '/review', icon: GitPullRequest, label: '코드 리뷰' },
   { to: '/deploy', icon: Play, label: '배포' },
   { to: '/sandbox', icon: Box, label: '샌드박스' },
-  { to: '/audit', icon: ClipboardList, label: '감사 로그' },
+  { to: '/history', icon: ClipboardList, label: '배포 이력' },
   { to: '/guide', icon: BookOpen, label: '시작 가이드' },
 ];
 
