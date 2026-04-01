@@ -52,18 +52,22 @@ class SQLAlchemyDeploymentRepository(DeploymentRepositoryPort):
         orm = result.scalar_one_or_none()
         return self._to_entity(orm) if orm else None
 
-    async def count(self, branch: str | None = None) -> int:
+    async def count(self, branch: str | None = None, status: str | None = None) -> int:
         from sqlalchemy import func
         query = select(func.count(DeploymentORM.id))
         if branch:
             query = query.where(DeploymentORM.branch == branch)
+        if status:
+            query = query.where(DeploymentORM.status == status)
         result = await self._db.execute(query)
         return result.scalar() or 0
 
-    async def find_recent(self, branch: str | None = None, limit: int = 10, offset: int = 0) -> list[Deployment]:
+    async def find_recent(self, branch: str | None = None, status: str | None = None, limit: int = 10, offset: int = 0) -> list[Deployment]:
         query = select(DeploymentORM).order_by(DeploymentORM.started_at.desc()).limit(limit).offset(offset)
         if branch:
             query = query.where(DeploymentORM.branch == branch)
+        if status:
+            query = query.where(DeploymentORM.status == status)
         result = await self._db.execute(query)
         return [self._to_entity(r) for r in result.scalars().all()]
 

@@ -123,6 +123,9 @@ LLM_ENDPOINT=https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat
 # 배포 모드 (restart: 폐쇄망 / build: 인터넷)
 DEPLOY_MODE=restart
 DEPLOY_SERVICE_NAME=backend frontend
+
+# Docker Compose 프로젝트명 (배포 대상)
+DEPLOY_COMPOSE_PROJECT=smagentlab
 ENVEOF
 
   echo "  .env 생성 완료"

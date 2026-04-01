@@ -33,6 +33,12 @@ class Review:
         self.acted_by = acted_by
         self.reviewed_at = datetime.now(timezone.utc)
 
+    def reset(self) -> None:
+        self.status = ReviewStatus.PENDING
+        self.comment = None
+        self.acted_by = None
+        self.reviewed_at = None
+
     @property
     def is_approved(self) -> bool:
         return self.status == ReviewStatus.APPROVED

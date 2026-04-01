@@ -10,10 +10,11 @@ export default function DashboardPage() {
   const [deploys, setDeploys] = useState<DeployStatus[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<DeployDetail | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   const loadData = useCallback(() => {
-    fetchRecentDeploys(1, 20).then((r) => setDeploys(r.items)).catch(() => {});
-  }, []);
+    fetchRecentDeploys(1, 20, undefined, statusFilter || undefined).then((r) => setDeploys(r.items)).catch(() => {});
+  }, [statusFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useAutoRefresh(loadData);
@@ -67,7 +68,29 @@ export default function DashboardPage() {
 
       {/* main 배포 이력 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="font-semibold text-gray-800 mb-4">main 브랜치 배포 이력</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800">main 브랜치 배포 이력</h3>
+          <div className="flex items-center gap-1">
+            {[
+              { value: '', label: '전체' },
+              { value: 'SUCCESS', label: '성공' },
+              { value: 'FAILED', label: '실패' },
+              { value: 'BUILDING', label: '빌드 중' },
+            ].map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  statusFilter === f.value
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {deploys.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">배포 이력이 없습니다.</p>
         ) : (

@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
     DEPLOY_SERVICE_NAME: str = "backend frontend"
     DEPLOY_MODE: str = "restart"
+    DEPLOY_COMPOSE_PROJECT: str = "smagentlab"
     SANDBOX_HOST_PATH: str = "/tmp/pipeline-sandboxes"
     SANDBOX_CONTAINER_PATH: str = "/sandboxes"
 

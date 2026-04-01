@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.audit.application.use_cases import AppendAuditEntry
 from app.audit.infrastructure.sqlalchemy_repository import SQLAlchemyAuditRepository
+from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
 from app.shared.domain.events import DomainEvent
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ class AuditEventHandler:
             commit_sha=getattr(event, "commit_sha", None),
             metadata={"deployment_id": event.deployment_id, "result": "SUCCESS"},
         )
+        # 배포 성공 시 리뷰 상태 초기화 (재승인 필요)
+        await self._reset_review(event.branch)
 
     async def handle_deployment_failed(self, event: DomainEvent) -> None:
         await self._record(
@@ -46,6 +49,17 @@ class AuditEventHandler:
                 "new_commit": getattr(event, "new_commit_sha", None),
             },
         )
+
+    async def _reset_review(self, branch: str) -> None:
+        try:
+            async with self._session_factory() as db:
+                repo = SQLAlchemyReviewRepository(db)
+                review = await repo.find_by_branch(branch)
+                if review:
+                    review.reset()
+                    await repo.update(review)
+        except Exception:
+            logger.warning("리뷰 초기화 실패: %s", branch, exc_info=True)
 
     async def _record(
         self,

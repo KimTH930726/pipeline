@@ -21,7 +21,8 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost","http://localhost:3000"]}
       - DEPLOY_TARGET_PATH=${DEPLOY_TARGET_PATH:-}
       - DEPLOY_COMPOSE_FILE=${DEPLOY_COMPOSE_FILE:-docker-compose.yml}
-      - DEPLOY_SERVICE_NAME=${DEPLOY_SERVICE_NAME:-backend}
+      - DEPLOY_COMPOSE_PROJECT=${DEPLOY_COMPOSE_PROJECT:-smagentlab}
+      - DEPLOY_SERVICE_NAME=${DEPLOY_SERVICE_NAME:-backend frontend}
       - DEPLOY_MODE=${DEPLOY_MODE:-restart}
       - SANDBOX_HOST_PATH=${SANDBOX_HOST_PATH:-/tmp/pipeline-sandboxes}
       - GIT_CLONE_URL=${GIT_CLONE_URL:-}

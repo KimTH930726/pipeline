@@ -38,8 +38,11 @@ class ExecuteRollback:
 
         new_sha = self._git.revert_to(branch, target_sha)
 
-        # Create re-deploy
-        deployment = Deployment(branch=branch, commit_sha=new_sha, status=DeploymentStatus.BUILDING)
+        # Create re-deploy (원복으로 인한 재배포)
+        deployment = Deployment(
+            branch=branch, commit_sha=new_sha, status=DeploymentStatus.BUILDING,
+            commit_messages=f"[원복] {target_sha[:8]} 으로 되돌림",
+        )
         deployment = await self._deploy_repo.save(deployment)
 
         asyncio.create_task(self._runner.run(deployment.id, branch))

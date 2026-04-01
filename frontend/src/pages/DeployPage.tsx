@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import Header from '../components/layout/Header';
 import BuildStatusBadge from '../components/deploy/BuildStatusBadge';
 import BuildLogStream from '../components/deploy/BuildLogStream';
+import DeployPipeline from '../components/deploy/DeployPipeline';
+import ConflictDiffViewer from '../components/deploy/ConflictDiffViewer';
 import ChangedFileList from '../components/git/ChangedFileList';
 import DiffViewer from '../components/git/DiffViewer';
 import RCAReportComponent from '../components/analysis/RCAReport';
@@ -49,7 +51,8 @@ export default function DeployPage() {
   const [compareResult, setCompareResult] = useState<DeployCompare | null>(null);
   const [comparing, setComparing] = useState(false);
 
-  const { currentDeployment, buildLog, rcaReport, buildStatus, setDeployment } = useDeployStore();
+  const { currentDeployment, buildLog, rcaReport, buildStatus, stages, startPipeline, setDeployment, updateStage } = useDeployStore();
+  const pipelineRef = useRef<HTMLDivElement>(null);
   useBuildStatus(currentDeployment?.id ?? null);
 
   const loadDeploys = (page = 1) => {
@@ -67,10 +70,14 @@ export default function DeployPage() {
   useEffect(() => { reload(); }, [reload]);
   useAutoRefresh(reload);
 
-  // 빌드 중이면 5초마다 이력 갱신
+  // 빌드 중이면 3초마다 이력 갱신, 완료/실패 시 즉시 갱신
   useEffect(() => {
+    if (buildStatus === 'SUCCESS' || buildStatus === 'FAILED') {
+      loadDeploys(currentPage);
+      return;
+    }
     if (buildStatus !== 'BUILDING') return;
-    const timer = setInterval(() => loadDeploys(currentPage), 5000);
+    const timer = setInterval(() => loadDeploys(currentPage), 3000);
     return () => clearInterval(timer);
   }, [buildStatus, currentPage]);
 
@@ -98,20 +105,28 @@ export default function DeployPage() {
 
   const handleDeploy = async () => {
     if (!selectedBranch) return;
-    // 먼저 충돌 체크
+
+    // 파이프라인 즉시 표시
+    startPipeline();
+    setTimeout(() => pipelineRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+    // Step 1: 충돌 체크
+    updateStage('CONFLICT_CHECK', 'started');
     setCheckingConflicts(true);
     setConflictResult(null);
     try {
       const result = await checkConflicts(selectedBranch);
       if (result.has_conflicts) {
+        updateStage('CONFLICT_CHECK', 'failed');
         setConflictResult(result);
         setCheckingConflicts(false);
-        return; // 충돌 해결 UI로 전환
+        return;
       }
     } catch { /* 충돌 체크 실패 시 배포 진행 */ }
+    updateStage('CONFLICT_CHECK', 'completed');
     setCheckingConflicts(false);
 
-    // 충돌 없으면 바로 배포
+    // Step 2~4: 배포 (이후 단계는 WebSocket으로 업데이트)
     try {
       const deployment = await triggerDeploy(selectedBranch);
       setDeployment(deployment);
@@ -130,7 +145,11 @@ export default function DeployPage() {
       }
       await applyResolution(selectedBranch, resolutions);
       setConflictResult(null);
-      // 충돌 해결 후 배포
+      // 충돌 해결 완료 → 파이프라인 표시 + 충돌 단계 완료
+      startPipeline();
+      updateStage('CONFLICT_CHECK', 'completed', '충돌 해결 완료');
+      setTimeout(() => pipelineRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      // 배포 실행
       const deployment = await triggerDeploy(selectedBranch);
       setDeployment(deployment);
     } catch (err) {
@@ -237,6 +256,7 @@ export default function DeployPage() {
         )}
         <p className="mt-2 text-xs text-gray-400">
           빌드 성공 시 자동으로 main에 머지되고, Docker가 재빌드/재기동됩니다.
+          배포 성공 시 해당 브랜치의 승인 상태가 초기화되며, 샌드박스가 있으면 자동 삭제됩니다.
         </p>
       </div>
 
@@ -281,16 +301,10 @@ export default function DeployPage() {
                 <div className="bg-gray-50 px-3 py-2 text-sm font-mono font-medium text-gray-700 border-b">
                   {r.file_path}
                 </div>
-                <div className="grid grid-cols-2 gap-0">
-                  <div>
-                    <div className="px-3 py-1 bg-red-50 text-xs font-medium text-red-600 border-b">충돌 원본</div>
-                    <pre className="p-3 text-xs overflow-auto max-h-[300px] bg-red-50/30">{r.original_content}</pre>
-                  </div>
-                  <div>
-                    <div className="px-3 py-1 bg-green-50 text-xs font-medium text-green-600 border-b">AI 해결안</div>
-                    <pre className="p-3 text-xs overflow-auto max-h-[300px] bg-green-50/30">{r.resolved_content}</pre>
-                  </div>
-                </div>
+                <ConflictDiffViewer
+                  originalContent={r.original_content}
+                  resolvedContent={r.resolved_content}
+                />
                 <div className="px-3 py-2 bg-blue-50 border-t text-sm prose prose-sm max-w-none">
                   <Markdown>{r.explanation}</Markdown>
                 </div>
@@ -317,15 +331,25 @@ export default function DeployPage() {
         </div>
       )}
 
+      {/* 배포 파이프라인 진행 상태 */}
+      {buildStatus && (
+        <div ref={pipelineRef} className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">배포 파이프라인</h3>
+            {currentDeployment && (
+              <span className="text-xs text-gray-400 font-mono">
+                ID: {currentDeployment.id} | {currentDeployment.branch}
+              </span>
+            )}
+          </div>
+          <DeployPipeline stages={stages} buildStatus={buildStatus} />
+        </div>
+      )}
+
       {/* 실시간 빌드 로그 */}
       {currentDeployment && buildLog.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-800">빌드 로그 (실시간)</h3>
-            <span className="text-xs text-gray-400 font-mono">
-              ID: {currentDeployment.id} | {currentDeployment.branch}
-            </span>
-          </div>
+          <h3 className="font-semibold text-gray-800 mb-3">빌드 로그 (실시간)</h3>
           <BuildLogStream lines={buildLog} />
           {rcaReport && (
             <div className="mt-4">
@@ -402,6 +426,9 @@ export default function DeployPage() {
                         {d.rolled_back && (
                           <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded text-xs">원복</span>
                         )}
+                        {d.commit_messages?.startsWith('[원복]') && (
+                          <span className="px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded text-xs">원복 배포</span>
+                        )}
                       </div>
                     </td>
                     <td className="py-2 text-xs text-gray-600">{d.acted_by || '-'}</td>
@@ -429,7 +456,7 @@ export default function DeployPage() {
                             {expandedDetail.build_log && (
                               <BuildLogStream lines={expandedDetail.build_log.split('\n')} />
                             )}
-                            {(expandedDetail.status === 'SUCCESS' || expandedDetail.status === 'FAILED') && !expandedDetail.rolled_back && (
+                            {(expandedDetail.status === 'SUCCESS' || expandedDetail.status === 'FAILED') && !expandedDetail.rolled_back && !expandedDetail.commit_messages?.startsWith('[원복]') && (
                               <div className="flex items-center gap-4 mt-4 pt-3 border-t">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleRollback(); }}
@@ -442,6 +469,11 @@ export default function DeployPage() {
                                   이 배포를 원복하면 main이 이전 상태로 되돌아갑니다
                                 </span>
                               </div>
+                            )}
+                            {expandedDetail.commit_messages?.startsWith('[원복]') && (
+                              <p className="mt-3 pt-3 border-t text-xs text-purple-600">
+                                원복으로 인한 재배포입니다. 이 배포에 대한 원복은 지원되지 않습니다.
+                              </p>
                             )}
                             {expandedDetail.rolled_back && (
                               <p className="mt-3 pt-3 border-t text-xs text-orange-600">이 배포는 이미 원복되었습니다.</p>
@@ -509,6 +541,15 @@ export default function DeployPage() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="mt-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
+        <p className="text-sm font-semibold text-orange-800 mb-1">&#9888; 패키지 변경 시 주의</p>
+        <p className="text-xs text-gray-700">
+          <code className="bg-gray-200 px-1 rounded">pip install</code> / <code className="bg-gray-200 px-1 rounded">npm install</code> 이 필요한 변경은
+          <span className="font-semibold text-orange-700"> 폐쇄망 환경에서 배포 실패</span>할 수 있습니다.
+          패키지 변경 시 로컬에서 테스트 후 이미지 재빌드(<code className="bg-gray-200 px-1 rounded">export-images.sh</code>)가 필요합니다.
+        </p>
       </div>
     </div>
   );

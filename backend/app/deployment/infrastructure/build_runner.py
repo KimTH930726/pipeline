@@ -10,6 +10,8 @@ from app.deployment.domain.entities import Deployment, DeploymentStatus
 from app.deployment.domain.events import DeploymentSucceeded, DeploymentFailed
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
 from app.deployment.infrastructure.websocket_manager import ws_manager
+from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRepository
+from app.sandbox.infrastructure.process_manager import SandboxProcessManager
 from app.analysis.domain.ports import LLMPort
 from app.analysis.infrastructure.log_parser import extract_error_context
 from app.git.domain.repositories import GitRepositoryPort
@@ -41,14 +43,18 @@ class BuildProcessRunner:
             await ws_manager.broadcast(dep_id_str, {"type": "status", "data": "BUILDING"})
 
             # ── Step 1: 브랜치 빌드 테스트 ──
+            await self._stage(dep_id_str, "BUILD_VALIDATION", "started")
             await self._log(dep_id_str, full_log, "[PIPELINE] 브랜치 빌드 검증 시작...")
             build_ok = await self._run_branch_build(dep_id_str, full_log, branch)
 
             if not build_ok:
+                await self._stage(dep_id_str, "BUILD_VALIDATION", "failed")
                 await self._handle_failure(deployment_id, dep_id_str, full_log, exit_code=1)
                 return
+            await self._stage(dep_id_str, "BUILD_VALIDATION", "completed")
 
             # ── Step 2: main 머지 ──
+            await self._stage(dep_id_str, "MERGE", "started")
             await self._log(dep_id_str, full_log, "[PIPELINE] main 브랜치에 머지 중...")
             merge_sha = None
             if self._git:
@@ -57,17 +63,23 @@ class BuildProcessRunner:
                     await self._log(dep_id_str, full_log, f"[PIPELINE] 머지 완료: {merge_sha[:8]}")
                 except Exception as e:
                     await self._log(dep_id_str, full_log, f"[ERROR] 머지 실패: {e}", "stderr")
+                    await self._stage(dep_id_str, "MERGE", "failed")
                     await self._handle_failure(deployment_id, dep_id_str, full_log, exit_code=2)
                     return
+            await self._stage(dep_id_str, "MERGE", "completed")
 
             # ── Step 3: Docker 재빌드 & 재기동 ──
+            await self._stage(dep_id_str, "DOCKER_RESTART", "started")
             deploy_ok = await self._run_docker_deploy(dep_id_str, full_log)
 
             if not deploy_ok:
+                await self._stage(dep_id_str, "DOCKER_RESTART", "failed")
                 await self._handle_failure(deployment_id, dep_id_str, full_log, exit_code=3)
                 return
+            await self._stage(dep_id_str, "DOCKER_RESTART", "completed")
 
-            # ── 성공 ──
+            # ── 성공: 해당 브랜치 샌드박스 자동 정리 ──
+            await self._cleanup_sandboxes(dep_id_str, full_log, branch)
             await self._log(dep_id_str, full_log, "[PIPELINE] 배포 파이프라인 완료!")
             log_text = "\n".join(full_log)
 
@@ -128,7 +140,7 @@ class BuildProcessRunner:
             return await self._run_subprocess(dep_id_str, full_log, cmd)
 
     async def _run_docker_deploy(self, dep_id_str: str, full_log: list[str]) -> bool:
-        """Docker 재기동"""
+        """Docker 재기동 (backend=restart, frontend=rebuild)"""
         target_path = settings.DEPLOY_TARGET_PATH
 
         if not target_path:
@@ -136,20 +148,39 @@ class BuildProcessRunner:
                             "[DEPLOY] DEPLOY_TARGET_PATH 미설정 - Docker 재기동 스킵")
             return True
 
-        # compose 파일은 컨테이너 안에서 읽으므로 컨테이너 내부 경로
-        host_compose = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
+        compose_dir = settings.DEPLOY_COMPOSE_PATH
+        host_compose = f"{compose_dir}/{settings.DEPLOY_COMPOSE_FILE}"
+        compose_base = ["docker", "compose", "-f", host_compose, "-p", settings.DEPLOY_COMPOSE_PROJECT]
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
         if deploy_mode == "restart":
-            cmd = ["docker", "compose", "-f", host_compose, "restart"] + services
-            await self._log(dep_id_str, full_log, f"[DEPLOY] 폐쇄망 모드 - 재기동: {' '.join(cmd)}")
-        else:
-            cmd = ["docker", "compose", "-f", host_compose,
-                   "up", "-d", "--build", "--remove-orphans"] + services
-            await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
+            # backend: 볼륨 마운트라 restart로 충분
+            restart_svcs = [s for s in services if s != "frontend"]
+            # frontend: 이미지 재빌드 필요
+            rebuild_svcs = [s for s in services if s == "frontend"]
 
-        return await self._run_subprocess(dep_id_str, full_log, cmd)
+            if restart_svcs:
+                cmd = compose_base + ["restart"] + restart_svcs
+                await self._log(dep_id_str, full_log, f"[DEPLOY] backend 재기동: {' '.join(cmd)}")
+                if not await self._run_subprocess(dep_id_str, full_log, cmd):
+                    return False
+
+            if rebuild_svcs:
+                cmd = compose_base + ["build", "--no-cache"] + rebuild_svcs
+                await self._log(dep_id_str, full_log, f"[DEPLOY] frontend 이미지 빌드: {' '.join(cmd)}")
+                if not await self._run_subprocess(dep_id_str, full_log, cmd):
+                    return False
+                cmd = compose_base + ["up", "-d", "--no-deps"] + rebuild_svcs
+                await self._log(dep_id_str, full_log, f"[DEPLOY] frontend 재빌드: {' '.join(cmd)}")
+                if not await self._run_subprocess(dep_id_str, full_log, cmd):
+                    return False
+
+            return True
+        else:
+            cmd = compose_base + ["up", "-d", "--build", "--remove-orphans"] + services
+            await self._log(dep_id_str, full_log, f"[DEPLOY] 실행: {' '.join(cmd)}")
+            return await self._run_subprocess(dep_id_str, full_log, cmd)
 
     async def _run_subprocess(
         self, dep_id_str: str, full_log: list[str], cmd: list[str],
@@ -159,24 +190,21 @@ class BuildProcessRunner:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
             )
 
-            async def _stream(stream, name: str) -> None:
-                while True:
-                    line = await stream.readline()
-                    if not line:
-                        break
-                    text = line.decode().rstrip()
-                    full_log.append(text)
-                    await ws_manager.broadcast(dep_id_str, {
-                        "type": "log_line", "data": text, "stream": name,
-                    })
+            while True:
+                chunk = await process.stdout.read(4096)
+                if not chunk:
+                    break
+                for line in chunk.decode(errors="replace").splitlines():
+                    line = line.rstrip()
+                    if line:
+                        full_log.append(line)
+                        await ws_manager.broadcast(dep_id_str, {
+                            "type": "log_line", "data": line, "stream": "stdout",
+                        })
 
-            await asyncio.gather(
-                _stream(process.stdout, "stdout"),
-                _stream(process.stderr, "stderr"),
-            )
             exit_code = await process.wait()
             return exit_code == 0
         except FileNotFoundError as e:
@@ -219,6 +247,27 @@ class BuildProcessRunner:
             exit_code=exit_code,
             rca_report=rca_dict,
         ))
+
+    async def _cleanup_sandboxes(self, dep_id_str: str, full_log: list[str], branch: str) -> None:
+        """배포 성공 시 해당 브랜치의 샌드박스 자동 삭제"""
+        try:
+            async with self._session_factory() as db:
+                repo = SQLAlchemySandboxRepository(db)
+                sandboxes = await repo.find_all()
+                targets = [s for s in sandboxes if s.branch == branch]
+                for s in targets:
+                    if s.project_name:
+                        await SandboxProcessManager.destroy(s.project_name)
+                    await repo.delete(s.id)
+                    await self._log(dep_id_str, full_log,
+                                    f"[PIPELINE] 샌드박스 자동 삭제: {s.branch} (ID: {s.id})")
+        except Exception:
+            logger.warning("샌드박스 자동 정리 실패: %s", branch, exc_info=True)
+
+    async def _stage(self, dep_id_str: str, stage: str, status: str) -> None:
+        await ws_manager.broadcast(dep_id_str, {
+            "type": "stage", "stage": stage, "status": status,
+        })
 
     async def _log(self, dep_id_str: str, full_log: list[str], msg: str, stream: str = "stdout") -> None:
         full_log.append(msg)

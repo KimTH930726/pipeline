@@ -23,9 +23,12 @@ docker compose build --no-cache
 
 echo ""
 echo "[2/3] 이미지 내보내기 → ${EXPORT_FILE}"
+echo "  node:20-alpine 포함 (샌드박스 프론트엔드 빌드용)"
+docker pull node:20-alpine 2>/dev/null || true
 docker save \
   pipeline-backend:latest \
   pipeline-frontend:latest \
+  node:20-alpine \
 | gzip > "${EXPORT_FILE}"
 
 echo ""

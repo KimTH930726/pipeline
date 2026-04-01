@@ -16,10 +16,21 @@ export interface DeployDetail extends DeployStatus {
 }
 
 export interface BuildLogMessage {
-  type: 'log_line' | 'status' | 'rca';
+  type: 'log_line' | 'status' | 'rca' | 'stage';
   data: string | RCAReport;
   stream?: string;
   exit_code?: number;
+  stage?: string;
+  status?: string;
+}
+
+export type StageKey = 'CONFLICT_CHECK' | 'BUILD_VALIDATION' | 'MERGE' | 'DOCKER_RESTART';
+export type StageStatus = 'pending' | 'started' | 'completed' | 'failed';
+
+export interface StageInfo {
+  key: StageKey;
+  label: string;
+  status: StageStatus;
 }
 
 export interface RCAReport {

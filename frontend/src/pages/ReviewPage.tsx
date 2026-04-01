@@ -245,6 +245,17 @@ export default function ReviewPage() {
         </div>
       )}
 
+      {/* 이미 배포된 브랜치 안내 */}
+      {branch && files.length === 0 && review?.status === 'APPROVED' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-start gap-2">
+          <Info size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-blue-800">
+            <p className="font-medium">이 브랜치는 이미 main에 머지되어 변경사항이 없습니다.</p>
+            <p className="text-blue-600 mt-1">배포가 성공하면 승인 상태가 자동으로 초기화됩니다. 새 커밋을 추가한 후 다시 승인해주세요.</p>
+          </div>
+        </div>
+      )}
+
       {/* 승인/반려 패널 */}
       {branch && files.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">

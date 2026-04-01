@@ -92,11 +92,12 @@ async def mark_rolled_back(deployment_id: int, db: AsyncSession = Depends(get_db
 @router.get("/recent", response_model=DeployPageDTO)
 async def get_recent(
     branch: str | None = None,
+    status: str | None = None,
     page: int = 1,
     size: int = 10,
     uc: GetRecentDeployments = Depends(_recent_uc),
 ):
-    items, total = await uc.execute(branch, page=page, size=size)
+    items, total = await uc.execute(branch, status=status, page=page, size=size)
     return DeployPageDTO(items=items, total=total, page=page, size=size)
 
 

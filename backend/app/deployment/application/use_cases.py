@@ -87,10 +87,10 @@ class GetRecentDeployments:
     def __init__(self, repo: DeploymentRepositoryPort) -> None:
         self._repo = repo
 
-    async def execute(self, branch: str | None = None, page: int = 1, size: int = 10) -> tuple[list[DeployStatusDTO], int]:
+    async def execute(self, branch: str | None = None, status: str | None = None, page: int = 1, size: int = 10) -> tuple[list[DeployStatusDTO], int]:
         offset = (page - 1) * size
-        total = await self._repo.count(branch)
-        deps = await self._repo.find_recent(branch, limit=size, offset=offset)
+        total = await self._repo.count(branch, status)
+        deps = await self._repo.find_recent(branch, status=status, limit=size, offset=offset)
         items = [
             DeployStatusDTO(
                 id=d.id, branch=d.branch, commit_sha=d.commit_sha,
