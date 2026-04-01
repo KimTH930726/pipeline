@@ -75,7 +75,7 @@ async def analyze_sandbox_error(
             except Exception:
                 pass
 
-    user_key = await get_user_api_key(db, user["user_id"])
+    user_key = await get_user_api_key(db, user["id"])
     llm = VPCLLMAdapter(settings.LLM_ENDPOINT, api_key=user_key or settings.LLM_API_KEY)
     rca = await llm.analyze_failure(error_context)
     return {
