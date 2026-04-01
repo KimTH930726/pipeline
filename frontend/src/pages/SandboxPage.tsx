@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { Box, Trash2, ExternalLink, RefreshCw, Search } from 'lucide-react';
+import Markdown from 'react-markdown';
 import Header from '../components/layout/Header';
 import { fetchBranches } from '../api/gitApi';
 import type { BranchInfo } from '../types/git';
@@ -205,11 +206,15 @@ export default function SandboxPage() {
             {analysisResult[s.id] && (
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
                 <p className="text-xs font-semibold text-purple-700 mb-1">AI 원인 분석</p>
-                <p className="text-sm text-gray-800 mb-2">{analysisResult[s.id].root_cause}</p>
+                <div className="text-sm text-gray-800 mb-2 prose prose-sm max-w-none">
+                  <Markdown>{analysisResult[s.id].root_cause}</Markdown>
+                </div>
                 {analysisResult[s.id].suggested_fix && (
                   <>
                     <p className="text-xs font-semibold text-purple-700 mb-1">해결 방법</p>
-                    <p className="text-sm text-gray-800">{analysisResult[s.id].suggested_fix}</p>
+                    <div className="text-sm text-gray-800 prose prose-sm max-w-none">
+                      <Markdown>{analysisResult[s.id].suggested_fix}</Markdown>
+                    </div>
                   </>
                 )}
               </div>
