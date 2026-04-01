@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
-import { Box, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
+import { Box, Trash2, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { fetchBranches } from '../api/gitApi';
 import type { BranchInfo } from '../types/git';
@@ -20,6 +20,8 @@ export default function SandboxPage() {
   const [branches, setBranches] = useState<BranchInfo[]>([]);
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([]);
   const [creating, setCreating] = useState(false);
+  const [analyzing, setAnalyzing] = useState<number | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<Record<number, { root_cause: string; suggested_fix: string }>>({});
 
   const loadData = useCallback(() => {
     client.get<SandboxInfo[]>('/sandbox/').then((r) => setSandboxes(r.data)).catch(() => {});
@@ -53,6 +55,18 @@ export default function SandboxPage() {
   };
 
 
+
+  const handleAnalyze = async (id: number) => {
+    setAnalyzing(id);
+    try {
+      const r = await client.post<{ root_cause: string; suggested_fix: string }>(`/sandbox/${id}/analyze`);
+      setAnalysisResult((prev) => ({ ...prev, [id]: r.data }));
+    } catch {
+      setAnalysisResult((prev) => ({ ...prev, [id]: { root_cause: 'AI 분석 실패 — LLM API Key를 확인해주세요.', suggested_fix: '' } }));
+    } finally {
+      setAnalyzing(null);
+    }
+  };
 
   const handleDestroy = async (id: number) => {
     if (!confirm('샌드박스를 삭제하시겠습니까? 컨테이너와 임시 파일이 모두 제거됩니다.')) return;
@@ -168,8 +182,36 @@ export default function SandboxPage() {
 
             {s.status === 'ERROR' && s.error_log && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                <p className="text-xs font-semibold text-red-600 mb-1">오류 원인</p>
-                <pre className="text-xs text-red-700 whitespace-pre-wrap">{s.error_log}</pre>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-red-600">오류 원인</p>
+                  {!analysisResult[s.id] && (
+                    <button
+                      onClick={() => handleAnalyze(s.id)}
+                      disabled={analyzing === s.id}
+                      className="flex items-center gap-1 text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {analyzing === s.id ? (
+                        <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <Search size={10} />
+                      )}
+                      {analyzing === s.id ? 'AI 분석 중...' : 'AI 원인 분석'}
+                    </button>
+                  )}
+                </div>
+                <pre className="text-xs text-red-700 whitespace-pre-wrap max-h-[150px] overflow-auto">{s.error_log}</pre>
+              </div>
+            )}
+            {analysisResult[s.id] && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+                <p className="text-xs font-semibold text-purple-700 mb-1">AI 원인 분석</p>
+                <p className="text-sm text-gray-800 mb-2">{analysisResult[s.id].root_cause}</p>
+                {analysisResult[s.id].suggested_fix && (
+                  <>
+                    <p className="text-xs font-semibold text-purple-700 mb-1">해결 방법</p>
+                    <p className="text-sm text-gray-800">{analysisResult[s.id].suggested_fix}</p>
+                  </>
+                )}
               </div>
             )}
 
