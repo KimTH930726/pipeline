@@ -31,11 +31,11 @@ backend/app/<context>/
 | Context | Responsibility |
 |---------|---------------|
 | **auth** | JWT 인증, 회원가입(관리자 승인), 비밀번호 변경, API Key 관리 |
-| **git** | 브랜치 CRUD, diff, merge, revert, 충돌 감지/해결, 배포간 diff |
+| **git** | 브랜치 CRUD, diff(`main..branch`), squash merge, revert, 충돌 감지/해결, 배포간 diff |
 | **review** | 코드 리뷰 승인/반려 + acted_by 추적 |
 | **deployment** | 빌드→충돌체크→머지→Docker 재기동(backend restart/frontend rebuild), 이력(상태필터+페이징), 배포 비교, acted_by, 파이프라인 단계 실시간 UI |
 | **analysis** | AI 영향도 + AI 코드리뷰 + 머지 충돌 AI 해결 + RCA + 수정 프롬프트 |
-| **rollback** | git revert -m 1 + 자동 재배포, 원복 배포 구분 태그, 원복 배포에 재원복 방지 |
+| **rollback** | git revert HEAD + 자동 재배포, 원복 배포 구분 태그, 원복 배포에 재원복 방지 |
 | **sandbox** | 브랜치별 Docker 컨테이너 (backend+frontend, 동적 포트, node:20-alpine 빌드) |
 | **audit** | SHA-256 해시체인 감사 로그 (브랜치/이벤트 필터, 페이징) |
 
