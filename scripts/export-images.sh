@@ -1,56 +1,65 @@
 #!/bin/bash
 # ============================================================
-# Agentic Deployment 포탈 이미지 내보내기 (인터넷 PC에서 실행)
+# Agentic Deployment Portal 이미지 빌드 + 내보내기 (Linux/macOS)
 #
 # 사용법:
 #   cd pipeline
-#   bash scripts/export-images.sh
+#   bash scripts/export-images.sh [태그]
 #
-# 결과물: pipeline-images.tar.gz
-# USB/SCP로 폐쇄망 서버에 전달
+#   예) bash scripts/export-images.sh v1.0
+#       → pipeline-images-v1.0.tar.gz
+#
+# 인자 미지정 시 .env의 IMAGE_TAG 또는 latest 사용.
+# SMAgentLab 이미지는 SMAgentLab 리포에서 별도 빌드:
+#   bash ../SMAgentLab/scripts/export-images.sh v2.16
 # ============================================================
 set -e
 
-EXPORT_FILE="pipeline-images.tar.gz"
+TAG=${1:-}
+
+# .env에서 IMAGE_TAG 읽기 (인자 미지정 시)
+if [ -z "${TAG}" ] && [ -f ".env" ]; then
+  TAG=$(grep -E "^IMAGE_TAG=" .env | cut -d= -f2 | tr -d '"' | tr -d "'")
+fi
+TAG=${TAG:-latest}
+
+EXPORT_FILE="pipeline-images-${TAG}.tar.gz"
+BACKEND_IMG="pipeline-backend:${TAG}"
+FRONTEND_IMG="pipeline-frontend:${TAG}"
 
 echo "=========================================="
-echo " Agentic Deployment 이미지 빌드 + 내보내기"
+echo " Pipeline 이미지 빌드 + 내보내기"
+echo " 태그: ${TAG}"
 echo "=========================================="
 
-SMAGENT_PATH="${SMAGENT_PATH:-../SMAgentLab}"
-
+# ─── 1. 빌드 ───
 echo ""
-echo "[1/4] Pipeline 이미지 빌드 중..."
-docker compose build --no-cache
+echo "[1/3] Pipeline 이미지 빌드 중..."
+IMAGE_TAG="${TAG}" docker compose build --no-cache
 
-echo ""
-echo "[2/4] SMAgentLab 이미지 빌드 중..."
-if [ -f "$SMAGENT_PATH/docker-compose.yml" ]; then
-  docker compose -f "$SMAGENT_PATH/docker-compose.yml" build --no-cache
-else
-  echo "  [경고] $SMAGENT_PATH/docker-compose.yml 없음 — SMAgentLab 이미지는 별도 빌드 필요"
+# 빌드 결과는 base compose 정의상 pipeline-backend:latest, pipeline-frontend:latest로 떨어짐
+# → 명시 태그로 다시 tag 부여
+if [ "${TAG}" != "latest" ]; then
+  docker tag pipeline-backend:latest "${BACKEND_IMG}"
+  docker tag pipeline-frontend:latest "${FRONTEND_IMG}"
 fi
 
+# ─── 2. 외부 의존 이미지 (네트워크 가능할 때만) ───
 echo ""
-echo "[3/4] 의존 이미지 pull..."
+echo "[2/3] 의존 이미지 pull (실패 무시)..."
 docker pull node:20-alpine 2>/dev/null || true
 docker pull nginx:alpine 2>/dev/null || true
-docker pull pgvector/pgvector:pg16 2>/dev/null || true
-docker pull redis:7-alpine 2>/dev/null || true
 
+# ─── 3. 내보내기 ───
 echo ""
-echo "[4/4] 이미지 내보내기 → ${EXPORT_FILE}"
+echo "[3/3] 이미지 내보내기 → ${EXPORT_FILE}"
 IMAGES=(
-  pipeline-backend:latest
-  pipeline-frontend:latest
-  smagentlab-backend:latest
-  smagentlab-frontend:latest
+  "${BACKEND_IMG}"
+  "${FRONTEND_IMG}"
   node:20-alpine
   nginx:alpine
-  pgvector/pgvector:pg16
-  redis:7-alpine
 )
-# 존재하는 이미지만 내보내기
+
 EXISTING_IMAGES=()
 for img in "${IMAGES[@]}"; do
   if docker image inspect "$img" > /dev/null 2>&1; then
@@ -59,14 +68,17 @@ for img in "${IMAGES[@]}"; do
     echo "  [스킵] $img (로컬에 없음)"
   fi
 done
+
 echo "  내보내는 이미지: ${#EXISTING_IMAGES[@]}개"
 docker save "${EXISTING_IMAGES[@]}" | gzip > "${EXPORT_FILE}"
 
+SIZE=$(du -h "${EXPORT_FILE}" | cut -f1)
 echo ""
 echo "완료!"
-SIZE=$(du -h "${EXPORT_FILE}" | cut -f1)
 echo "  파일: ${EXPORT_FILE}"
 echo "  크기: ${SIZE}"
 echo ""
-echo "폐쇄망 서버에 전달 후:"
-echo "  bash scripts/import-and-run.sh"
+echo "다음 단계:"
+echo "  1) ${EXPORT_FILE} 를 폐쇄망 서버로 전송"
+echo "  2) docker-compose.yml, docker-compose.prod.yml, scripts/, .env 도 함께 전송"
+echo "  3) 서버에서: bash scripts/import-and-run.sh ${EXPORT_FILE}"

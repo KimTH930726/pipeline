@@ -129,7 +129,7 @@ class BuildProcessRunner:
                 ["python3", "-c", self._simulation_build_script(branch)],
             )
 
-        compose_file = f"{settings.DEPLOY_COMPOSE_PATH}/{settings.DEPLOY_COMPOSE_FILE}"
+        compose_files = self._compose_file_args(settings.DEPLOY_COMPOSE_PATH)
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
@@ -138,7 +138,7 @@ class BuildProcessRunner:
             cmd = ["python3", "-c", self._syntax_check_script(settings.DEPLOY_COMPOSE_PATH)]
             return await self._run_subprocess(dep_id_str, full_log, cmd)
         else:
-            cmd = ["docker", "compose", "-f", compose_file, "build"] + services
+            cmd = ["docker", "compose"] + compose_files + ["build"] + services
             await self._log(dep_id_str, full_log, f"[BUILD] 실행: {' '.join(cmd)}")
             return await self._run_subprocess(dep_id_str, full_log, cmd)
 
@@ -159,8 +159,8 @@ class BuildProcessRunner:
         await checkout_proc.communicate()
 
         compose_dir = settings.DEPLOY_COMPOSE_PATH
-        host_compose = f"{compose_dir}/{settings.DEPLOY_COMPOSE_FILE}"
-        compose_base = ["docker", "compose", "-f", host_compose, "-p", settings.DEPLOY_COMPOSE_PROJECT]
+        compose_files = self._compose_file_args(compose_dir)
+        compose_base = ["docker", "compose"] + compose_files + ["-p", settings.DEPLOY_COMPOSE_PROJECT]
         services = settings.DEPLOY_SERVICE_NAME.split() if settings.DEPLOY_SERVICE_NAME else []
         deploy_mode = settings.DEPLOY_MODE
 
@@ -289,6 +289,17 @@ class BuildProcessRunner:
         await ws_manager.broadcast(dep_id_str, {
             "type": "log_line", "data": msg, "stream": stream,
         })
+
+    @staticmethod
+    def _compose_file_args(compose_dir: str) -> list[str]:
+        """[-f base.yml -f override1.yml ...] — DEPLOY_COMPOSE_OVERRIDES 지원."""
+        args = ["-f", f"{compose_dir}/{settings.DEPLOY_COMPOSE_FILE}"]
+        if settings.DEPLOY_COMPOSE_OVERRIDES:
+            for override in settings.DEPLOY_COMPOSE_OVERRIDES.split(","):
+                override = override.strip()
+                if override:
+                    args += ["-f", f"{compose_dir}/{override}"]
+        return args
 
     @staticmethod
     def _simulation_build_script(branch: str) -> str:

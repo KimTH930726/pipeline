@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # DEPLOY_COMPOSE_PATH: 컨테이너 내부 경로 (compose 파일 읽기용)
     DEPLOY_COMPOSE_PATH: str = "/deploy-target"
     DEPLOY_COMPOSE_FILE: str = "docker-compose.yml"
+    # 추가 compose 오버라이드 (콤마 구분, 폐쇄망 prod 환경: docker-compose.prod.yml)
+    DEPLOY_COMPOSE_OVERRIDES: str = ""
     DEPLOY_SERVICE_NAME: str = "backend frontend"
     DEPLOY_MODE: str = "restart"
     DEPLOY_COMPOSE_PROJECT: str = "smagentlab"

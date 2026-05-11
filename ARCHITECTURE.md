@@ -178,41 +178,52 @@ backend/app/<context>/
 | `FERNET_SECRET_KEY` | API Key 암호화 키 | (자동 생성) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 호스트 경로 | - |
 | `DEPLOY_COMPOSE_PROJECT` | Docker Compose 프로젝트명 | smagentlab |
+| `DEPLOY_COMPOSE_OVERRIDES` | 추가 compose 오버라이드 (콤마 구분) | - |
 | `DEPLOY_SERVICE_NAME` | 재기동 대상 서비스 | backend frontend |
 | `DEPLOY_MODE` | restart(폐쇄망) / rebuild(인터넷) | restart |
+| `IMAGE_TAG` | prod compose의 이미지 태그 | latest |
 | `ADMIN_DEFAULT_PASSWORD` | 초기 관리자 비밀번호 | admin1234 |
 
 ---
 
-## 9. 폐쇄망 배포 가이드
+## 9. 폐쇄망 배포 가이드 (prod 모드)
+
+운영 시 `docker-compose.yml` + `docker-compose.prod.yml`을 함께 사용. 이미지 태그는 `IMAGE_TAG` 변수로 명시(롤백·멀티버전 보존). 상세 절차는 [`docs/deployment-closed-network.md`](docs/deployment-closed-network.md) 참고.
 
 ```bash
-# 1. 인터넷 PC에서 이미지 내보내기
+# 빌드 PC (인터넷)
 cd pipeline
-bash scripts/export-images.sh
-# → pipeline-images.tar.gz (8개 이미지 포함)
+bash scripts/export-images.sh v1.0          # → pipeline-images-v1.0.tar.gz
+# Windows: powershell -ExecutionPolicy Bypass -File scripts\export-images.ps1 -Tag v1.0
 
-# 2. USB/SCP로 폐쇄망 서버에 전달
+# SMAgentLab 이미지는 SMAgentLab 리포에서 별도 빌드
+bash ../SMAgentLab/scripts/export-images.sh v2.16
 
-# 3. 폐쇄망 서버에서 실행
-cd pipeline
-bash scripts/import-and-run.sh --project-path /path/to/SMAgentLab
+# 폐쇄망 서버 (최초)
+cd /opt/pipeline
+bash scripts/import-and-run.sh pipeline-images-v1.0.tar.gz \
+  --project-path /opt/smagentlab \
+  --smagent-images smagentlab-images-v2.16.tar.gz
 
-# 4. 브라우저 접속
-# http://<서버IP>:3000 → admin / admin1234
+# 업데이트
+bash scripts/update-images.sh pipeline-images-v1.1.tar.gz
 ```
 
-### 포함 이미지
+### 포함 이미지 (pipeline 묶음)
 | 이미지 | 용도 |
 |--------|------|
-| `pipeline-backend:latest` | 포탈 백엔드 |
-| `pipeline-frontend:latest` | 포탈 프론트엔드 |
-| `smagentlab-backend:latest` | 배포 대상 백엔드 |
-| `smagentlab-frontend:latest` | 배포 대상 프론트엔드 |
+| `pipeline-backend:${IMAGE_TAG}` | 포탈 백엔드 |
+| `pipeline-frontend:${IMAGE_TAG}` | 포탈 프론트엔드 |
 | `node:20-alpine` | 샌드박스 프론트엔드 빌드 |
 | `nginx:alpine` | 프론트엔드 서빙 |
-| `pgvector/pgvector:pg16` | PostgreSQL + pgvector |
-| `redis:7-alpine` | Redis 캐시 |
+
+> SMAgentLab 이미지(`smagentlab-backend/frontend`, `pgvector`, `redis`)는 SMAgentLab 묶음에서 반입.
+
+### prod 모드 핵심 차이
+- `build: !reset null` — 사전 빌드 이미지만 사용
+- `pull_policy: never` — 외부 레지스트리 접근 차단
+- pipeline `volumes`(repo, deploy-target, sandboxes, db-data, docker.sock)는 base 그대로 유지 — 운영에 필수
+- SMAgentLab은 backend의 호스트 소스 마운트 유지 (pipeline 배포가 git merge → restart로 작동하기 위함)
 
 ---
 
@@ -246,10 +257,17 @@ pipeline/
 │   ├── Dockerfile
 │   └── nginx.conf
 ├── scripts/
-│   ├── export-images.sh    # 이미지 내보내기 (인터넷 PC)
-│   └── import-and-run.sh   # 폐쇄망 자동 배포
-├── docker-compose.yml
-├── .env                    # 환경 변수 (git 제외)
-├── CLAUDE.md               # Claude Code 가이드
-└── ARCHITECTURE.md          # 이 문서
+│   ├── export-images.sh    # 이미지 빌드+내보내기 (Linux/macOS)
+│   ├── export-images.ps1   # 이미지 빌드+내보내기 (Windows PowerShell)
+│   ├── import-and-run.sh   # 폐쇄망 최초 배포
+│   ├── update-images.sh    # 폐쇄망 이미지 업데이트 (백업 자동 제안)
+│   ├── backup-db.sh        # SQLite DB 백업
+│   └── restore-db.sh       # SQLite DB 복원
+├── docs/
+│   └── deployment-closed-network.md  # 폐쇄망 운영 가이드
+├── docker-compose.yml          # base
+├── docker-compose.prod.yml     # 운영(폐쇄망) 오버라이드
+├── .env                        # 환경 변수 (git 제외)
+├── CLAUDE.md                   # Claude Code 가이드
+└── ARCHITECTURE.md              # 이 문서
 ```

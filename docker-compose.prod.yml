@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────
+# 운영(폐쇄망) 오버라이드
+#
+# 사용법:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# 차이점:
+#   - build 섹션 제거 → 사전 빌드된 이미지만 사용 (docker save/load로 반입)
+#   - pull_policy: never → 외부 레지스트리 접근 시도 차단
+#   - 이미지 태그 명시 (IMAGE_TAG, .env에서 주입, 기본값 latest)
+#
+# 주의:
+#   - base의 volumes(/repo, /deploy-target, /sandboxes, db-data,
+#     /var/run/docker.sock)는 운영에 필수 → !override 적용 안 함.
+# ─────────────────────────────────────────────────────────────────
+services:
+  backend:
+    image: pipeline-backend:${IMAGE_TAG:-latest}
+    pull_policy: never
+    build: !reset null
+
+  frontend:
+    image: pipeline-frontend:${IMAGE_TAG:-latest}
+    pull_policy: never
+    build: !reset null

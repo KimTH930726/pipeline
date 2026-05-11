@@ -384,6 +384,23 @@ environment:
 | `ADMIN_DEFAULT_PASSWORD` | 초기 admin 비밀번호 (기본: admin1234) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 docker-compose 경로 |
 | `DEPLOY_COMPOSE_FILE` | compose 파일명 |
+| `DEPLOY_COMPOSE_OVERRIDES` | 추가 compose 오버라이드 (콤마 구분, 폐쇄망 prod: `docker-compose.prod.yml,docker-compose.dev.yml`) |
+| `DEPLOY_MODE` | restart(폐쇄망) / rebuild(인터넷) |
+| `IMAGE_TAG` | 폐쇄망 prod 이미지 태그 (운영 시 `v1.0` 등 명시 권장) |
+
+---
+
+## 폐쇄망 배포
+
+운영 시 `docker-compose.prod.yml`을 함께 사용하고 이미지를 USB/SCP로 반입합니다. 상세 절차는 [`docs/deployment-closed-network.md`](docs/deployment-closed-network.md) 참고.
+
+```bash
+# 빌드 PC
+bash scripts/export-images.sh v1.0      # → pipeline-images-v1.0.tar.gz
+
+# 폐쇄망 서버
+bash scripts/import-and-run.sh pipeline-images-v1.0.tar.gz
+```
 
 ---
 

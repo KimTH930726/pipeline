@@ -64,8 +64,10 @@ backend/app/<context>/
 | `FERNET_SECRET_KEY` | API Key 암호화 키 (.env로 관리) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 호스트 경로 (docker-compose + 샌드박스 빌드) |
 | `DEPLOY_COMPOSE_PROJECT` | 배포 대상 Docker Compose 프로젝트명 (기본: smagentlab) |
+| `DEPLOY_COMPOSE_OVERRIDES` | 추가 compose 오버라이드 (콤마 구분, 폐쇄망 prod: `docker-compose.prod.yml`) |
 | `DEPLOY_SERVICE_NAME` | 재기동 대상 서비스 (기본: backend frontend) |
 | `DEPLOY_MODE` | restart(폐쇄망) / rebuild(인터넷) |
+| `IMAGE_TAG` | docker-compose.prod.yml에서 사용할 이미지 태그 (운영 시 명시 권장) |
 | `ADMIN_DEFAULT_PASSWORD` | 초기 admin 비밀번호 |
 
 ## API Routes
@@ -112,12 +114,25 @@ Audit:    GET  /api/audit/timeline?branch=&event_type=&limit=&offset=
 ## Database
 SQLite, 5개 테이블: `users`, `deployments`, `reviews`, `audit_logs`, `sandboxes`. Auto-created on startup.
 
-## 폐쇄망 배포
-```bash
-# 인터넷 PC에서 이미지 내보내기
-bash scripts/export-images.sh    # → pipeline-images.tar.gz (node:20-alpine 포함)
+## 폐쇄망 배포 (prod)
+운영용 오버라이드(`docker-compose.prod.yml`) 사용. `IMAGE_TAG` 명시 권장.
 
-# 폐쇄망 서버에서 실행
-bash scripts/import-and-run.sh   # 이미지 로드 → bare repo → .env 생성 → 서비스 기동
+```bash
+# 빌드 PC (인터넷)
+bash scripts/export-images.sh v1.0          # → pipeline-images-v1.0.tar.gz
+
+# 폐쇄망 서버 (최초)
+bash scripts/import-and-run.sh pipeline-images-v1.0.tar.gz
+
+# 폐쇄망 서버 (업데이트)
+bash scripts/update-images.sh pipeline-images-v1.1.tar.gz   # DB 백업 자동 제안
+
+# DB 백업/복원 (SQLite)
+bash scripts/backup-db.sh                    # → backups/pipeline-audit-*.db.gz
+bash scripts/restore-db.sh backups/...
 ```
+
+상세 절차: [`docs/deployment-closed-network.md`](docs/deployment-closed-network.md).
 패키지(pip/npm) 변경 없으면 Docker 캐시로 오프라인 동작. 패키지 변경 시 이미지 재빌드 필요.
+
+**같은 서버에 SMAgentLab과 함께 운영 시**: SMAgentLab의 `backend/` 디렉토리도 반입 필수 (pipeline 배포 시 호스트 마운트로 코드 갱신). `/opt/pipeline`, `/opt/smagentlab` 별도 디렉토리 권장.
