@@ -5,7 +5,8 @@ export interface UserInfo {
   username: string;
   role: string;
   is_active: boolean;
-  has_api_key: boolean;
+  has_llm_credentials: boolean;
+  llm_user_id: string | null;
   created_at: string;
 }
 
@@ -14,6 +15,12 @@ export interface LoginResponse {
   refresh_token: string;
   token_type: string;
   user: UserInfo;
+}
+
+export interface LLMCredentials {
+  client_id: string;
+  client_secret: string;
+  llm_user_id: string;
 }
 
 export const login = (username: string, password: string) =>
@@ -25,8 +32,8 @@ export const getMe = () =>
 export const refreshToken = (refresh_token: string) =>
   client.post<{ access_token: string }>('/auth/refresh', { refresh_token }).then(r => r.data);
 
-export const updateApiKey = (llm_api_key: string) =>
-  client.put('/auth/me/api-key', { llm_api_key }).then(r => r.data);
+export const updateLLMCredentials = (creds: LLMCredentials) =>
+  client.put('/auth/me/llm-credentials', creds).then(r => r.data);
 
 export const listUsers = () =>
   client.get<UserInfo[]>('/auth/users').then(r => r.data);

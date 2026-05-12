@@ -7,9 +7,12 @@ from app.shared.infrastructure.database import get_db
 from app.shared.infrastructure.security import decode_token
 from app.auth.schemas import (
     LoginRequest, SignupRequest, RegisterRequest, TokenResponse, RefreshRequest,
-    AccessTokenResponse, UserOut, ApiKeyUpdateRequest, PasswordChangeRequest,
+    AccessTokenResponse, UserOut, LLMCredentialsRequest, PasswordChangeRequest,
 )
-from app.auth.service import authenticate, signup_user, create_user, activate_user, get_user_by_id, list_users, update_api_key, change_password, make_tokens
+from app.auth.service import (
+    authenticate, signup_user, create_user, activate_user, get_user_by_id,
+    list_users, update_llm_credentials, change_password, make_tokens,
+)
 from app.auth.dependencies import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -18,7 +21,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def _to_user_out(user) -> UserOut:
     return UserOut(
         id=user.id, username=user.username, role=user.role,
-        is_active=user.is_active, has_api_key=bool(user.encrypted_llm_api_key),
+        is_active=user.is_active,
+        has_llm_credentials=bool(user.encrypted_llm_client_id and user.encrypted_llm_client_secret),
+        llm_user_id=user.llm_user_id,
         created_at=user.created_at,
     )
 
@@ -40,7 +45,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     """셀프 회원가입 (관리자 승인 전까지 비활성)"""
     try:
-        user = await signup_user(db, body.username, body.password, body.llm_api_key)
+        user = await signup_user(db, body.username, body.password)
         return _to_user_out(user)
     except Exception:
         raise HTTPException(status_code=409, detail="이미 존재하는 사용자입니다.")
@@ -98,9 +103,19 @@ async def change_my_password(body: PasswordChangeRequest, user: dict = Depends(g
     return {"status": "ok"}
 
 
-@router.put("/me/api-key")
-async def update_my_api_key(body: ApiKeyUpdateRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await update_api_key(db, user["id"], body.llm_api_key)
+@router.put("/me/llm-credentials")
+async def update_my_llm_credentials(
+    body: LLMCredentialsRequest,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """개별 DevX Gateway 자격증명 등록/갱신. 빈 값은 .env의 팀 자격증명으로 fallback."""
+    await update_llm_credentials(
+        db, user["id"],
+        client_id=body.client_id,
+        client_secret=body.client_secret,
+        llm_user_id=body.llm_user_id,
+    )
     return {"status": "ok"}
 
 

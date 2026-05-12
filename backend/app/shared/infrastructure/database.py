@@ -30,6 +30,9 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         for table, column, col_type in [
             ("audit_logs", "acted_by", "VARCHAR(100)"),
+            ("users", "encrypted_llm_client_id", "VARCHAR"),
+            ("users", "encrypted_llm_client_secret", "VARCHAR"),
+            ("users", "llm_user_id", "VARCHAR(200)"),
         ]:
             try:
                 await conn.execute(

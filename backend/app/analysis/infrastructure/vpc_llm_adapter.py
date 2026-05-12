@@ -29,24 +29,36 @@ Python/FastAPI 기반 프로젝트의 배포 파이프라인에서 코드 변경
 
 
 class VPCLLMAdapter(LLMPort):
-    # 시스템 단일 토큰 캐시 (client_credentials).
-    # 인스턴스마다 새로 만들기보다 클래스 단위로 공유 — token 발급 호출 절감.
-    _token_state: dict = {"token": None, "expires_at": 0.0}
+    # client_id별 토큰 캐시 (사용자별 + 팀 fallback 다중 자격증명 지원).
+    # {client_id: {"token": str, "expires_at": float}}
+    _token_cache: dict[str, dict] = {}
     _token_lock: asyncio.Lock | None = None
 
-    def __init__(self, user_identifier: str | None = None, timeout: float = 120.0) -> None:
-        # user 필드는 dify에 등록된 ID여야 응답이 옴.
-        # 우선순위: settings.LLM_USER_ID > 호출자 user_identifier > "system"
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
+        timeout: float = 120.0,
+    ) -> None:
+        """인스턴스별 자격증명. 인자 미지정 시 settings(.env 팀 fallback) 사용.
+
+        우선순위: 인자 > settings
+        - client_id/secret: 사용자 DB에 등록된 키 또는 .env 팀 키
+        - user_id: dify 등록된 user ID (호출자별로 다를 수 있음)
+        - conversation_id: dify 세션 ID (시스템 공통 또는 사용자별)
+        """
         from app.config import settings
-        self._user = settings.LLM_USER_ID or user_identifier or "system"
+        self._client_id = client_id or settings.LLM_CLIENT_ID
+        self._client_secret = client_secret or settings.LLM_CLIENT_SECRET
+        self._user = user_id or settings.LLM_USER_ID or "system"
+        self._conversation_id = conversation_id or settings.LLM_CONVERSATION_ID
         self._timeout = timeout
         self._auth_endpoint = settings.LLM_AUTH_ENDPOINT
         self._chat_endpoint = settings.LLM_CHAT_ENDPOINT
-        self._client_id = settings.LLM_CLIENT_ID
-        self._client_secret = settings.LLM_CLIENT_SECRET
         self._agent_code = settings.LLM_AGENT_CODE
         self._agent_id = settings.LLM_AGENT_ID
-        self._conversation_id = settings.LLM_CONVERSATION_ID
 
     async def analyze_impact(self, diff_text: str, file_list: list[str]) -> ImpactReport:
         trimmed_diff = self._trim_diff(diff_text, max_chars=8000)
@@ -243,7 +255,7 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
         data = json.loads(await self._call(prompt))
         return RCAReport(**data)
 
-    # ─── 토큰 발급 + 캐싱 (시스템 단일 client_credentials) ──────────────
+    # ─── 토큰 발급 + 캐싱 (client_id별로 분리) ──────────────────────────
     @classmethod
     async def _get_access_token(
         cls,
@@ -257,7 +269,7 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
 
         async with cls._token_lock:
             now = time.time()
-            state = cls._token_state
+            state = cls._token_cache.get(client_id) or {"token": None, "expires_at": 0.0}
             # 만료 30초 전부터 갱신
             if state["token"] and state["expires_at"] > now + 30:
                 return state["token"]
@@ -286,6 +298,7 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
             # expires_in 없으면 1시간 기본
             state["token"] = token
             state["expires_at"] = now + int(data.get("expires_in", 3600))
+            cls._token_cache[client_id] = state
             return token
 
     # ─── SSE 호출 → 응답 모아서 JSON 추출 ──────────────────────────────

@@ -22,7 +22,7 @@ GitHub/GitLab 대체용 **자체 SCM & 배포 포탈**. 폐쇄망 환경에서�
 | **Frontend** | React 19, TypeScript, Tailwind CSS, Vite, Zustand, react-markdown |
 | **Backend** | Python 3.11, FastAPI (async), SQLAlchemy 2.0 async + aiosqlite |
 | **SCM** | GitPython (싱글턴 패턴) |
-| **LLM** | DevX Gateway — client_credentials OAuth2 토큰 발급 → Bearer + SSE streaming, 시스템 단일 자격증명 |
+| **LLM** | DevX Gateway — client_credentials OAuth2 + SSE streaming. 하이브리드 자격증명(사용자 DB 개별 → `.env` 팀 fallback) |
 | **Auth** | JWT (python-jose) + bcrypt + Fernet (시크릿 암호화) |
 | **Real-time** | WebSocket (빌드 로그 + 파이프라인 단계 스트리밍) |
 | **DB** | SQLite (5개 테이블, 서버 기동 시 자동 생성) |
@@ -138,7 +138,7 @@ backend/app/<context>/
 | `/deploy` | 배포 | 배포 실행 전용, 4단계 파이프라인 UI, 실시간 빌드 로그 |
 | `/history` | 배포 이력 | 상세(커밋/변경파일/빌드로그 토글), 원복, 배포 비교, 필터 |
 | `/guide` | 시작 가이드 | 9단계 가이드 (클론→브랜치→샌드박스→리뷰→배포→원복→설정) |
-| `/settings` | 설정 | 비밀번호 변경 (LLM은 시스템 단일 자격증명) |
+| `/settings` | 설정 | 비밀번호 변경 + 개별 LLM 자격증명 등록 |
 | `/admin` | 관리자 | 사용자 관리 (승인/비활성화) |
 
 ---

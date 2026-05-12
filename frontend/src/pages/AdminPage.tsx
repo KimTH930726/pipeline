@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
-import { UserCheck, UserX, Shield, Key } from 'lucide-react';
+import { UserCheck, UserX, Shield } from 'lucide-react';
 import Header from '../components/layout/Header';
-import { listUsers, registerUser, updateApiKey, type UserInfo } from '../api/authApi';
+import { listUsers, registerUser, type UserInfo } from '../api/authApi';
 import client from '../api/client';
 
 export default function AdminPage() {
@@ -15,10 +15,6 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('user');
   const [registerError, setRegisterError] = useState('');
-
-  // 내 API Key
-  const [myApiKey, setMyApiKey] = useState('');
-  const [keyMsg, setKeyMsg] = useState('');
 
   const loadUsers = useCallback(() => {
     setLoading(true);
@@ -52,49 +48,11 @@ export default function AdminPage() {
     }
   };
 
-  const handleUpdateKey = async () => {
-    if (!myApiKey.trim()) return;
-    try {
-      await updateApiKey(myApiKey.trim());
-      setKeyMsg('API Key가 업데이트되었습니다.');
-      setMyApiKey('');
-      setTimeout(() => setKeyMsg(''), 3000);
-    } catch {
-      setKeyMsg('업데이트 실패');
-    }
-  };
-
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
     <div>
-      <Header title="사용자 관리" subtitle="회원 승인, 등록 및 API Key 관리" />
-
-      {/* 내 API Key 설정 */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Key size={16} className="text-blue-600" />
-          <h3 className="text-sm font-semibold text-gray-700">내 LLM API Key</h3>
-        </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="password"
-            value={myApiKey}
-            onChange={(e) => setMyApiKey(e.target.value)}
-            placeholder="DevX MCP API Key 입력"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
-          <button
-            onClick={handleUpdateKey}
-            disabled={!myApiKey.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-          >
-            저장
-          </button>
-        </div>
-        {keyMsg && <p className="mt-2 text-sm text-green-600">{keyMsg}</p>}
-        <p className="mt-2 text-xs text-gray-400">AI 분석(영향도, 코드리뷰, RCA) 호출 시 사용됩니다. 미설정 시 시스템 키로 fallback.</p>
-      </div>
+      <Header title="사용자 관리" subtitle="회원 승인 및 등록" />
 
       {/* 사용자 관리 */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -165,10 +123,10 @@ export default function AdminPage() {
                     </span>
                   </td>
                   <td className="py-2.5">
-                    {u.has_api_key ? (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">등록됨</span>
+                    {u.has_llm_credentials ? (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">개별 등록</span>
                     ) : (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">미등록</span>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">팀 공용</span>
                     )}
                   </td>
                   <td className="py-2.5">

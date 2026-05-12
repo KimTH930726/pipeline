@@ -12,13 +12,22 @@ class LoginRequest(BaseModel):
 class SignupRequest(BaseModel):
     username: str
     password: str
-    llm_api_key: str = ""
 
 
 class RegisterRequest(BaseModel):
     username: str
     password: str
     role: str = "user"
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    role: str
+    is_active: bool
+    has_llm_credentials: bool = False
+    llm_user_id: str | None = None
+    created_at: datetime
 
 
 class TokenResponse(BaseModel):
@@ -37,17 +46,12 @@ class AccessTokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class UserOut(BaseModel):
-    id: int
-    username: str
-    role: str
-    is_active: bool
-    has_api_key: bool = False
-    created_at: datetime
-
-
-class ApiKeyUpdateRequest(BaseModel):
-    llm_api_key: str
+class LLMCredentialsRequest(BaseModel):
+    """사용자별 DevX Gateway 자격증명 등록.
+    빈 문자열로 보내면 해당 필드 제거(.env 팀 fallback 사용)."""
+    client_id: str = ""
+    client_secret: str = ""
+    llm_user_id: str = ""
 
 
 class PasswordChangeRequest(BaseModel):

@@ -334,7 +334,7 @@ environment:
 | `POST` | `/api/auth/refresh` | 토큰 갱신 |
 | `GET` | `/api/auth/me` | 내 정보 |
 | `PUT` | `/api/auth/me/password` | 비밀번호 변경 |
-| `PUT` | `/api/auth/me/api-key` | LLM API Key 등록/변경 |
+| `PUT` | `/api/auth/me/llm-credentials` | 개별 LLM 자격증명 등록 (client_id/secret/user_id) |
 | `GET` | `/api/auth/users` | 사용자 목록 (admin) |
 | `PUT` | `/api/auth/users/{id}/activate\|deactivate` | 승인/비활성 (admin) |
 

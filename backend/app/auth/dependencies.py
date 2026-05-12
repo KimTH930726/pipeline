@@ -33,7 +33,7 @@ async def get_current_user(
         "username": user.username,
         "role": user.role,
         "is_active": user.is_active,
-        "has_api_key": bool(user.encrypted_llm_api_key),
+        "has_llm_credentials": bool(user.encrypted_llm_client_id and user.encrypted_llm_client_secret),
     }
 
 
