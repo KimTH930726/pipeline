@@ -29,21 +29,24 @@ Python/FastAPI 기반 프로젝트의 배포 파이프라인에서 코드 변경
 
 
 class VPCLLMAdapter(LLMPort):
-    # 시스템 단일 토큰 캐시 (client_credentials)
-    _token: str | None = None
-    _token_expires_at: float = 0.0
+    # 시스템 단일 토큰 캐시 (client_credentials).
+    # 인스턴스마다 새로 만들기보다 클래스 단위로 공유 — token 발급 호출 절감.
+    _token_state: dict = {"token": None, "expires_at": 0.0}
     _token_lock: asyncio.Lock | None = None
 
-    def __init__(self, user_identifier: str = "system", timeout: float = 120.0) -> None:
-        self._user = user_identifier or "system"
-        self._timeout = timeout
+    def __init__(self, user_identifier: str | None = None, timeout: float = 120.0) -> None:
+        # user 필드는 dify에 등록된 ID여야 응답이 옴.
+        # 우선순위: settings.LLM_USER_ID > 호출자 user_identifier > "system"
         from app.config import settings
+        self._user = settings.LLM_USER_ID or user_identifier or "system"
+        self._timeout = timeout
         self._auth_endpoint = settings.LLM_AUTH_ENDPOINT
         self._chat_endpoint = settings.LLM_CHAT_ENDPOINT
         self._client_id = settings.LLM_CLIENT_ID
         self._client_secret = settings.LLM_CLIENT_SECRET
         self._agent_code = settings.LLM_AGENT_CODE
         self._agent_id = settings.LLM_AGENT_ID
+        self._conversation_id = settings.LLM_CONVERSATION_ID
 
     async def analyze_impact(self, diff_text: str, file_list: list[str]) -> ImpactReport:
         trimmed_diff = self._trim_diff(diff_text, max_chars=8000)
@@ -254,9 +257,10 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
 
         async with cls._token_lock:
             now = time.time()
+            state = cls._token_state
             # 만료 30초 전부터 갱신
-            if cls._token and cls._token_expires_at > now + 30:
-                return cls._token
+            if state["token"] and state["expires_at"] > now + 30:
+                return state["token"]
 
             try:
                 async with httpx.AsyncClient(timeout=timeout) as client:
@@ -280,9 +284,8 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
                 raise LLMConnectionError(auth_endpoint)
 
             # expires_in 없으면 1시간 기본
-            expires_in = int(data.get("expires_in", 3600))
-            cls._token = token
-            cls._token_expires_at = now + expires_in
+            state["token"] = token
+            state["expires_at"] = now + int(data.get("expires_in", 3600))
             return token
 
     # ─── SSE 호출 → 응답 모아서 JSON 추출 ──────────────────────────────
@@ -296,12 +299,14 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
         )
 
         query = f"{SYSTEM_PROMPT}\n\n{prompt}"
+        # dify는 사전 등록된 conversation_id만 응답. 미설정 시 새 UUID 시도(빈 응답 가능).
+        conversation_id = self._conversation_id or str(uuid.uuid4())
         payload = {
             "user": self._user,
             "query": query,
             "agent_id": self._agent_id,
             "agent_code": self._agent_code,
-            "conversation_id": str(uuid.uuid4()),
+            "conversation_id": conversation_id,
             "knowledge_ids": [],
             "response_mode": "streaming",
         }

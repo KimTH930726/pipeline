@@ -13,8 +13,15 @@ services:
       - REPO_PATH=/repo
       - DATABASE_URL=sqlite+aiosqlite:////data/audit.db
       - LLM_MODE=inhouse
-      - LLM_ENDPOINT=${LLM_ENDPOINT:-https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat}
-      - LLM_API_KEY=${LLM_API_KEY:-}
+      # DevX Gateway (client_credentials OAuth2 + SSE streaming)
+      - LLM_AUTH_ENDPOINT=${LLM_AUTH_ENDPOINT:-https://devx-gw.shinsegae-inc.com/api/v1/auth/token}
+      - LLM_CHAT_ENDPOINT=${LLM_CHAT_ENDPOINT:-https://devx-gw.shinsegae-inc.com/api/v1/agent/chat}
+      - LLM_CLIENT_ID=${LLM_CLIENT_ID:-}
+      - LLM_CLIENT_SECRET=${LLM_CLIENT_SECRET:-}
+      - LLM_AGENT_CODE=${LLM_AGENT_CODE:-playground}
+      - LLM_AGENT_ID=${LLM_AGENT_ID:-b6958377-73f2-4234-a49c-2aa878350a2e}
+      - LLM_USER_ID=${LLM_USER_ID:-}
+      - LLM_CONVERSATION_ID=${LLM_CONVERSATION_ID:-}
       - FERNET_SECRET_KEY=${FERNET_SECRET_KEY:-}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-secret-key-in-production}
       - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin1234}
@@ -22,6 +29,7 @@ services:
       - DEPLOY_TARGET_PATH=${DEPLOY_TARGET_PATH:-}
       - DEPLOY_COMPOSE_FILE=${DEPLOY_COMPOSE_FILE:-docker-compose.yml}
       - DEPLOY_COMPOSE_PROJECT=${DEPLOY_COMPOSE_PROJECT:-smagentlab}
+      - DEPLOY_COMPOSE_OVERRIDES=${DEPLOY_COMPOSE_OVERRIDES:-}
       - DEPLOY_SERVICE_NAME=${DEPLOY_SERVICE_NAME:-backend frontend}
       - DEPLOY_MODE=${DEPLOY_MODE:-restart}
       - SANDBOX_HOST_PATH=${SANDBOX_HOST_PATH:-/tmp/pipeline-sandboxes}

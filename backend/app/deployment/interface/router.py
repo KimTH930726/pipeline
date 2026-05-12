@@ -12,11 +12,11 @@ from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploy
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.deployment.infrastructure.websocket_manager import ws_manager
 
-from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.review.infrastructure.sqlalchemy_repository import SQLAlchemyReviewRepository
 from app.auth.dependencies import get_current_user
 from app.shared.infrastructure.deploy_lock import check_no_active_deployment
+from app.shared.llm_factory import make_system_llm
 
 router = APIRouter(prefix="/api/deploy", tags=["deploy"])
 
@@ -35,8 +35,7 @@ def _get_event_bus() -> InMemoryEventBus:
 
 
 def _build_runner(bus: InMemoryEventBus = Depends(_get_event_bus)) -> BuildProcessRunner:
-    llm = VPCLLMAdapter()
-    return BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo())
+    return BuildProcessRunner(SessionFactory, make_system_llm(), bus, git_repo=get_git_repo())
 
 
 def _trigger_uc(

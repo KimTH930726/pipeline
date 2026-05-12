@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.shared.infrastructure.database import get_db
@@ -9,9 +9,9 @@ from app.sandbox.application.use_cases import CreateSandbox, StopSandbox, Destro
 from app.sandbox.infrastructure.sqlalchemy_repository import SQLAlchemySandboxRepository
 from app.auth.dependencies import get_current_user
 from app.shared.infrastructure.deploy_lock import check_no_active_deployment
-from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
+from app.shared.llm_factory import get_llm_for_user
+from app.analysis.domain.ports import LLMPort
 from app.config import settings
-from fastapi import HTTPException
 
 router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
 
@@ -46,8 +46,7 @@ async def destroy_sandbox(sandbox_id: int, repo=Depends(_repo), user: dict = Dep
 async def analyze_sandbox_error(
     sandbox_id: int,
     repo=Depends(_repo),
-    db=Depends(get_db),
-    user: dict = Depends(get_current_user),
+    llm: LLMPort = Depends(get_llm_for_user),
 ):
     import re
     from pathlib import Path
@@ -76,12 +75,6 @@ async def analyze_sandbox_error(
             except Exception:
                 pass
 
-    if not settings.LLM_CLIENT_ID or not settings.LLM_CLIENT_SECRET:
-        raise HTTPException(
-            status_code=400,
-            detail="LLM_CLIENT_ID/LLM_CLIENT_SECRET가 설정되지 않았습니다. 운영자에게 문의하세요.",
-        )
-    llm = VPCLLMAdapter(user_identifier=user.get("username") or str(user.get("id") or "system"))
     rca = await llm.analyze_failure(error_context)
     return {
         "root_cause": rca.root_cause,

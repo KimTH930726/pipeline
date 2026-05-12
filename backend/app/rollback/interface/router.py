@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.shared.infrastructure.database import get_db, SessionFactory
 from app.shared.infrastructure.event_bus import InMemoryEventBus
 from app.rollback.application.dtos import RollbackRequestDTO, RollbackResultDTO
@@ -12,9 +11,9 @@ from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploy
 from app.deployment.infrastructure.build_runner import BuildProcessRunner
 from app.git.infrastructure.git_python_adapter import get_git_repo
 
-from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.auth.dependencies import get_current_user
 from app.shared.infrastructure.deploy_lock import check_no_active_deployment
+from app.shared.llm_factory import make_system_llm
 
 router = APIRouter(prefix="/api/rollback", tags=["rollback"])
 
@@ -36,11 +35,10 @@ def _rollback_uc(
     db: AsyncSession = Depends(get_db),
     bus: InMemoryEventBus = Depends(_get_event_bus),
 ) -> ExecuteRollback:
-    llm = VPCLLMAdapter()
     return ExecuteRollback(
         git_repo=get_git_repo(),
         deploy_repo=SQLAlchemyDeploymentRepository(db),
-        build_runner=BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo()),
+        build_runner=BuildProcessRunner(SessionFactory, make_system_llm(), bus, git_repo=get_git_repo()),
         event_bus=bus,
     )
 

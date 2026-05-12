@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.shared.infrastructure.database import get_db
 from app.analysis.application.dtos import (
     ImpactAnalysisRequestDTO,
@@ -17,30 +16,18 @@ from app.analysis.application.dtos import (
     RCAResponseDTO,
 )
 
-from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.analysis.domain.ports import LLMPort
 from app.git.infrastructure.git_python_adapter import get_git_repo
 from app.deployment.infrastructure.sqlalchemy_repository import SQLAlchemyDeploymentRepository
-from app.auth.dependencies import get_current_user
+from app.shared.llm_factory import get_llm_for_user
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 logger = __import__("logging").getLogger(__name__)
 
 
-def _llm(user: dict | None = None) -> LLMPort:
-    if not settings.LLM_CLIENT_ID or not settings.LLM_CLIENT_SECRET:
-        raise HTTPException(
-            status_code=400,
-            detail="LLM_CLIENT_ID/LLM_CLIENT_SECRET가 설정되지 않았습니다. 운영자에게 문의하세요.",
-        )
-    user_identifier = (user or {}).get("username") or str((user or {}).get("id") or "system")
-    return VPCLLMAdapter(user_identifier=user_identifier)
-
-
 @router.post("/impact", response_model=ImpactAnalysisResponseDTO)
-async def analyze_impact(req: ImpactAnalysisRequestDTO, user: dict = Depends(get_current_user)):
-    llm = _llm(user)
+async def analyze_impact(req: ImpactAnalysisRequestDTO, llm: LLMPort = Depends(get_llm_for_user)):
     git_repo = get_git_repo()
     diff_text = git_repo.get_full_diff(req.branch)
     changes = git_repo.get_changed_files(req.branch)
@@ -53,8 +40,7 @@ async def analyze_impact(req: ImpactAnalysisRequestDTO, user: dict = Depends(get
 
 
 @router.post("/review", response_model=CodeReviewResponseDTO)
-async def review_code(req: ImpactAnalysisRequestDTO, user: dict = Depends(get_current_user)):
-    llm = _llm(user)
+async def review_code(req: ImpactAnalysisRequestDTO, llm: LLMPort = Depends(get_llm_for_user)):
     git_repo = get_git_repo()
     diff_text = git_repo.get_full_diff(req.branch)
     changes = git_repo.get_changed_files(req.branch)
@@ -71,12 +57,11 @@ async def review_code(req: ImpactAnalysisRequestDTO, user: dict = Depends(get_cu
 
 
 @router.post("/conflicts", response_model=MergeConflictResponseDTO)
-async def check_conflicts(req: ImpactAnalysisRequestDTO, user: dict = Depends(get_current_user)):
+async def check_conflicts(req: ImpactAnalysisRequestDTO, llm: LLMPort = Depends(get_llm_for_user)):
     conflicts = get_git_repo().check_merge_conflicts(req.branch)
     if not conflicts:
         return MergeConflictResponseDTO(has_conflicts=False)
 
-    llm = _llm(user)
     try:
         report = await llm.resolve_conflicts(conflicts)
         return MergeConflictResponseDTO(
@@ -116,7 +101,7 @@ async def apply_resolution(req: ApplyResolutionRequestDTO):
 async def analyze_rca(
     req: RCARequestDTO,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    llm: LLMPort = Depends(get_llm_for_user),
 ):
     build_log = req.build_log
     if not build_log and req.deployment_id:
@@ -128,7 +113,6 @@ async def analyze_rca(
     if not build_log:
         raise HTTPException(status_code=400, detail="No build log available")
 
-    llm = _llm(user)
     report = await llm.analyze_failure(build_log)
     return RCAResponseDTO(
         root_cause=report.root_cause, affected_files=report.affected_files,

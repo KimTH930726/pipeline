@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     LLM_CLIENT_SECRET: str = ""
     LLM_AGENT_CODE: str = "playground"
     LLM_AGENT_ID: str = "b6958377-73f2-4234-a49c-2aa878350a2e"
+    # dify에 등록된 user ID. 미설정 시 인스턴스 user_identifier 또는 "system" 사용.
+    LLM_USER_ID: str = ""
+    # dify에 사전 등록된 conversation_id (UUID). 새 UUID는 자동 등록되지 않아 빈 응답이 옴.
+    # 미설정 시 _call()이 새 UUID를 생성하지만 응답이 오지 않을 수 있음.
+    LLM_CONVERSATION_ID: str = ""
     SANDBOX_PORT_MIN: int = 9100
     SANDBOX_PORT_MAX: int = 9199
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
