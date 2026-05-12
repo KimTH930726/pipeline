@@ -22,8 +22,8 @@ GitHub/GitLab 대체용 **자체 SCM & 배포 포탈**. 폐쇄망 환경에서�
 | **Frontend** | React 19, TypeScript, Tailwind CSS, Vite, Zustand, react-markdown |
 | **Backend** | Python 3.11, FastAPI (async), SQLAlchemy 2.0 async + aiosqlite |
 | **SCM** | GitPython (싱글턴 패턴) |
-| **LLM** | DevX MCP API (InHouse Gemini) — 사용자별 API Key |
-| **Auth** | JWT (python-jose) + bcrypt + Fernet (API Key 암호화) |
+| **LLM** | DevX Gateway — client_credentials OAuth2 토큰 발급 → Bearer + SSE streaming, 시스템 단일 자격증명 |
+| **Auth** | JWT (python-jose) + bcrypt + Fernet (시크릿 암호화) |
 | **Real-time** | WebSocket (빌드 로그 + 파이프라인 단계 스트리밍) |
 | **DB** | SQLite (5개 테이블, 서버 기동 시 자동 생성) |
 | **Container** | Docker + Docker Compose |
@@ -84,7 +84,7 @@ backend/app/<context>/
 
 | Context | 역할 |
 |---------|------|
-| **auth** | JWT 인증, 회원가입(관리자 승인), 비밀번호 변경, 사용자별 LLM API Key 관리 |
+| **auth** | JWT 인증, 회원가입(관리자 승인), 비밀번호 변경 |
 | **git** | 브랜치 CRUD, diff(`main..branch`), squash merge(+fallback), revert, 충돌 감지/해결 |
 | **review** | 코드 리뷰 승인/반려, 배포 성공 시 PENDING 자동 초기화 |
 | **deployment** | 배포 파이프라인 (빌드검증→머지→Docker재기동), 이력 관리(상태/날짜 필터, 페이징) |
@@ -138,7 +138,7 @@ backend/app/<context>/
 | `/deploy` | 배포 | 배포 실행 전용, 4단계 파이프라인 UI, 실시간 빌드 로그 |
 | `/history` | 배포 이력 | 상세(커밋/변경파일/빌드로그 토글), 원복, 배포 비교, 필터 |
 | `/guide` | 시작 가이드 | 9단계 가이드 (클론→브랜치→샌드박스→리뷰→배포→원복→설정) |
-| `/settings` | 설정 | LLM API Key, 비밀번호 변경 |
+| `/settings` | 설정 | 비밀번호 변경 (LLM은 시스템 단일 자격증명) |
 | `/admin` | 관리자 | 사용자 관리 (승인/비활성화) |
 
 ---
@@ -172,10 +172,12 @@ backend/app/<context>/
 |------|------|--------|
 | `REPO_PATH` | Git repo 경로 | ~/agentic-scm-portal/sample-repo |
 | `DATABASE_URL` | SQLite 경로 | sqlite+aiosqlite:///~/audit.db |
-| `LLM_ENDPOINT` | DevX MCP API URL | https://devx-mcp-api... |
-| `LLM_API_KEY` | 시스템 LLM Key (fallback) | - |
+| `LLM_AUTH_ENDPOINT` | DevX Gateway 토큰 발급 URL | https://devx-gw.../auth/token |
+| `LLM_CHAT_ENDPOINT` | DevX Gateway 채팅 URL (SSE) | https://devx-gw.../agent/chat |
+| `LLM_CLIENT_ID` / `LLM_CLIENT_SECRET` | 시스템 단일 자격증명 | - |
+| `LLM_AGENT_ID` / `LLM_AGENT_CODE` | 호출 대상 Agent | b6958377.../playground |
 | `JWT_SECRET_KEY` | JWT 서명 키 | change-this-secret... |
-| `FERNET_SECRET_KEY` | API Key 암호화 키 | (자동 생성) |
+| `FERNET_SECRET_KEY` | 시크릿 암호화 키 | (자동 생성) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 호스트 경로 | - |
 | `DEPLOY_COMPOSE_PROJECT` | Docker Compose 프로젝트명 | smagentlab |
 | `DEPLOY_COMPOSE_OVERRIDES` | 추가 compose 오버라이드 (콤마 구분) | - |

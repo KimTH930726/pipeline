@@ -20,7 +20,7 @@
 /opt/pipeline/
 ├── docker-compose.yml                    # base
 ├── docker-compose.prod.yml               # 운영 오버라이드
-├── .env                                  # 시크릿 + IMAGE_TAG
+├── .env                                  # 시크릿 + IMAGE_TAG + LLM_CLIENT_ID/SECRET
 ├── scripts/
 │   ├── import-and-run.sh
 │   ├── update-images.sh
@@ -67,8 +67,8 @@ IMAGE_TAG=v1.0
 JWT_SECRET_KEY=<python -c "import secrets; print(secrets.token_hex(32))" 결과>
 FERNET_SECRET_KEY=<python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 결과>
 
-# 폐쇄망에서는 prod 오버라이드 필수
-DEPLOY_COMPOSE_OVERRIDES=docker-compose.prod.yml
+# 폐쇄망에서는 prod+dev 오버라이드 필수 (SMAgentLab dev.yml의 backend 마운트도 함께 적용)
+DEPLOY_COMPOSE_OVERRIDES=docker-compose.prod.yml,docker-compose.dev.yml
 DEPLOY_MODE=restart
 
 # 호스트 절대 경로
@@ -76,6 +76,14 @@ DEPLOY_TARGET_PATH=/opt/smagentlab
 REPO_HOST_PATH=/srv/repos/SMAgentLab.git
 
 ADMIN_DEFAULT_PASSWORD=<초기 admin 비밀번호>
+
+# LLM (DevX Gateway, client_credentials OAuth2 + SSE streaming)
+LLM_AUTH_ENDPOINT=https://devx-gw.shinsegae-inc.com/api/v1/auth/token
+LLM_CHAT_ENDPOINT=https://devx-gw.shinsegae-inc.com/api/v1/agent/chat
+LLM_CLIENT_ID=<발급받은 client_id>
+LLM_CLIENT_SECRET=<발급받은 client_secret>
+LLM_AGENT_ID=b6958377-73f2-4234-a49c-2aa878350a2e
+LLM_AGENT_CODE=playground
 ```
 
 ### 1-3. 이미지 빌드 + 내보내기
@@ -149,7 +157,7 @@ bash scripts/import-and-run.sh pipeline-images-v1.0.tar.gz
 
 ### 2-5. 초기 관리자 작업
 1. `http://<서버IP>:3000` 접속 → admin / `ADMIN_DEFAULT_PASSWORD` 로그인
-2. 설정 → 비밀번호 변경 + LLM API Key 등록
+2. 설정 → 비밀번호 변경 (LLM은 시스템 단일 자격증명 — `.env`의 `LLM_CLIENT_ID/SECRET`이면 충분, 사용자별 등록 불필요)
 3. 팀원 회원가입 안내 (`GIT_CLONE_URL` 함께 전달)
 
 ---
@@ -260,7 +268,7 @@ docker compose $COMPOSE down -v       # 볼륨까지 삭제 (데이터 손실)
 - [ ] `/opt/smagentlab`, `/opt/pipeline` 구성
 - [ ] SMAgentLab → pipeline 순서로 `import-and-run.sh` 실행
 - [ ] `http://<서버IP>:3000` 접속 확인
-- [ ] admin 로그인 → 비밀번호 변경 + LLM API Key 등록
+- [ ] admin 로그인 → 비밀번호 변경 (LLM은 .env의 `LLM_CLIENT_ID/SECRET`으로 시스템 단일 호출)
 - [ ] cron에 일일 백업 등록
 
 **버전 업데이트:**

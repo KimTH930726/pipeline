@@ -5,7 +5,6 @@ import client from '../api/client';
 export default function SignupPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [llmApiKey, setLlmApiKey] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -16,7 +15,7 @@ export default function SignupPage() {
     setError('');
     setLoading(true);
     try {
-      await client.post('/auth/signup', { username, password, llm_api_key: llmApiKey });
+      await client.post('/auth/signup', { username, password });
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.detail || '회원가입 실패');
@@ -71,17 +70,6 @@ export default function SignupPage() {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="비밀번호"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">LLM API Key</label>
-            <input
-              type="password"
-              value={llmApiKey}
-              onChange={(e) => setLlmApiKey(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="DevX MCP API Key"
-            />
-            <p className="text-xs text-gray-400 mt-1">AI 분석 기능에 사용됩니다</p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button

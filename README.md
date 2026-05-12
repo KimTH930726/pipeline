@@ -377,10 +377,12 @@ environment:
 |------|------|
 | `REPO_PATH` | Git 레포 경로 |
 | `DATABASE_URL` | SQLite 경로 |
-| `LLM_ENDPOINT` | DevX MCP API URL |
-| `LLM_API_KEY` | 시스템 LLM Key (사용자 키 없을 때 fallback) |
+| `LLM_AUTH_ENDPOINT` | DevX Gateway 토큰 발급 URL (client_credentials) |
+| `LLM_CHAT_ENDPOINT` | DevX Gateway 채팅 URL (SSE streaming) |
+| `LLM_CLIENT_ID` / `LLM_CLIENT_SECRET` | 시스템 단일 자격증명 |
+| `LLM_AGENT_ID` / `LLM_AGENT_CODE` | 호출 대상 Agent (Dify workflow) |
 | `JWT_SECRET_KEY` | JWT 서명 키 |
-| `FERNET_SECRET_KEY` | API Key 암호화 키 |
+| `FERNET_SECRET_KEY` | 시크릿 암호화 키 |
 | `ADMIN_DEFAULT_PASSWORD` | 초기 admin 비밀번호 (기본: admin1234) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 docker-compose 경로 |
 | `DEPLOY_COMPOSE_FILE` | compose 파일명 |

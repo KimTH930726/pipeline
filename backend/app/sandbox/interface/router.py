@@ -11,7 +11,6 @@ from app.auth.dependencies import get_current_user
 from app.shared.infrastructure.deploy_lock import check_no_active_deployment
 from app.analysis.infrastructure.vpc_llm_adapter import VPCLLMAdapter
 from app.config import settings
-from app.auth.service import get_user_by_id, get_user_api_key
 from fastapi import HTTPException
 
 router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
@@ -77,9 +76,12 @@ async def analyze_sandbox_error(
             except Exception:
                 pass
 
-    user_obj = await get_user_by_id(db, user["id"])
-    user_key = get_user_api_key(user_obj) if user_obj else None
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT, user_api_key=user_key or settings.LLM_API_KEY)
+    if not settings.LLM_CLIENT_ID or not settings.LLM_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=400,
+            detail="LLM_CLIENT_ID/LLM_CLIENT_SECRET가 설정되지 않았습니다. 운영자에게 문의하세요.",
+        )
+    llm = VPCLLMAdapter(user_identifier=user.get("username") or str(user.get("id") or "system"))
     rca = await llm.analyze_failure(error_context)
     return {
         "root_cause": rca.root_cause,

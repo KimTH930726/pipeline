@@ -8,12 +8,14 @@ class Settings(BaseSettings):
     APP_NAME: str = "Agentic SCM Portal"
     REPO_PATH: str = str(Path.home() / "agentic-scm-portal" / "sample-repo")
     DATABASE_URL: str = f"sqlite+aiosqlite:///{Path.home() / 'agentic-scm-portal' / 'data' / 'audit.db'}"
+    # === LLM (DevX Gateway, client_credentials OAuth2 + SSE streaming) ===
     LLM_MODE: str = "inhouse"
-    LLM_ENDPOINT: str = "https://devx-mcp-api.shinsegae-inc.com/api/v1/mcp-command/chat"
-    LLM_API_KEY: str = ""
-    LLM_USECASE_CODE: str = "playground"
-    LLM_USECASE_ID: str = "b6958377-73f2-4234-a49c-2aa878350a2e"
-    LLM_PROJECT_ID: str = "eb01fb40-909b-4a0a-b86e-824c6a3bea2e"
+    LLM_AUTH_ENDPOINT: str = "https://devx-gw.shinsegae-inc.com/api/v1/auth/token"
+    LLM_CHAT_ENDPOINT: str = "https://devx-gw.shinsegae-inc.com/api/v1/agent/chat"
+    LLM_CLIENT_ID: str = ""
+    LLM_CLIENT_SECRET: str = ""
+    LLM_AGENT_CODE: str = "playground"
+    LLM_AGENT_ID: str = "b6958377-73f2-4234-a49c-2aa878350a2e"
     SANDBOX_PORT_MIN: int = 9100
     SANDBOX_PORT_MAX: int = 9199
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]

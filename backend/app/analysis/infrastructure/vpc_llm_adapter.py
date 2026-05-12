@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import time
+import uuid
 
 import httpx
 
@@ -26,17 +29,23 @@ Python/FastAPI 기반 프로젝트의 배포 파이프라인에서 코드 변경
 
 
 class VPCLLMAdapter(LLMPort):
-    def __init__(self, endpoint: str, timeout: float = 120.0, user_api_key: str | None = None) -> None:
-        self._endpoint = endpoint
+    # 시스템 단일 토큰 캐시 (client_credentials)
+    _token: str | None = None
+    _token_expires_at: float = 0.0
+    _token_lock: asyncio.Lock | None = None
+
+    def __init__(self, user_identifier: str = "system", timeout: float = 120.0) -> None:
+        self._user = user_identifier or "system"
         self._timeout = timeout
         from app.config import settings
-        self._api_key = user_api_key or settings.LLM_API_KEY
-        self._usecase_code = settings.LLM_USECASE_CODE
-        self._usecase_id = settings.LLM_USECASE_ID
-        self._project_id = settings.LLM_PROJECT_ID
+        self._auth_endpoint = settings.LLM_AUTH_ENDPOINT
+        self._chat_endpoint = settings.LLM_CHAT_ENDPOINT
+        self._client_id = settings.LLM_CLIENT_ID
+        self._client_secret = settings.LLM_CLIENT_SECRET
+        self._agent_code = settings.LLM_AGENT_CODE
+        self._agent_id = settings.LLM_AGENT_ID
 
     async def analyze_impact(self, diff_text: str, file_list: list[str]) -> ImpactReport:
-        # diff가 너무 길면 핵심 변경사항만 추출
         trimmed_diff = self._trim_diff(diff_text, max_chars=8000)
         file_summary = json.dumps(file_list, ensure_ascii=False)
 
@@ -231,42 +240,120 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
         data = json.loads(await self._call(prompt))
         return RCAReport(**data)
 
+    # ─── 토큰 발급 + 캐싱 (시스템 단일 client_credentials) ──────────────
+    @classmethod
+    async def _get_access_token(
+        cls,
+        auth_endpoint: str,
+        client_id: str,
+        client_secret: str,
+        timeout: float,
+    ) -> str:
+        if cls._token_lock is None:
+            cls._token_lock = asyncio.Lock()
+
+        async with cls._token_lock:
+            now = time.time()
+            # 만료 30초 전부터 갱신
+            if cls._token and cls._token_expires_at > now + 30:
+                return cls._token
+
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.post(
+                        auth_endpoint,
+                        data={
+                            "grant_type": "client_credentials",
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                        },
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+            except httpx.HTTPError as exc:
+                logger.error("LLM token 발급 실패: %s", exc)
+                raise LLMConnectionError(auth_endpoint) from exc
+
+            token = data.get("access_token")
+            if not token:
+                logger.error("LLM token 응답에 access_token 없음: %s", data)
+                raise LLMConnectionError(auth_endpoint)
+
+            # expires_in 없으면 1시간 기본
+            expires_in = int(data.get("expires_in", 3600))
+            cls._token = token
+            cls._token_expires_at = now + expires_in
+            return token
+
+    # ─── SSE 호출 → 응답 모아서 JSON 추출 ──────────────────────────────
     async def _call(self, prompt: str) -> str:
+        if not self._client_id or not self._client_secret:
+            logger.error("LLM_CLIENT_ID/LLM_CLIENT_SECRET 미설정")
+            raise LLMConnectionError(self._auth_endpoint)
+
+        token = await self._get_access_token(
+            self._auth_endpoint, self._client_id, self._client_secret, self._timeout,
+        )
+
         query = f"{SYSTEM_PROMPT}\n\n{prompt}"
         payload = {
-            "usecase_code": self._usecase_code,
-            "usecase_id": self._usecase_id,
-            "project_id": self._project_id,
+            "user": self._user,
             "query": query,
-            "response_mode": "blocking",
+            "agent_id": self._agent_id,
+            "agent_code": self._agent_code,
+            "conversation_id": str(uuid.uuid4()),
+            "knowledge_ids": [],
+            "response_mode": "streaming",
         }
-        headers = {"Content-Type": "application/json"}
-        if self._api_key:
-            headers["Authorization"] = f"Bearer {self._api_key}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "text/event-stream",
+            "Content-Type": "application/json",
+        }
 
         try:
+            answer_parts: list[str] = []
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(
-                    self._endpoint,
-                    json=payload,
-                    headers=headers,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-
-                # InHouse API 응답: answer 또는 external_response.dify_response.answer
-                raw = (
-                    data.get("answer")
-                    or data.get("external_response", {}).get("dify_response", {}).get("answer")
-                    or "{}"
-                )
-                return self._extract_json(raw)
-        except json.JSONDecodeError as exc:
-            logger.error("LLM response JSON parse error: %s", exc)
-            raise LLMConnectionError(self._endpoint) from exc
+                async with client.stream(
+                    "POST", self._chat_endpoint, json=payload, headers=headers,
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        chunk = self._parse_sse_line(line)
+                        if chunk is None:
+                            continue
+                        # 가능한 응답 필드: answer(점진적) / delta.content / message
+                        if isinstance(chunk, dict):
+                            piece = (
+                                chunk.get("answer")
+                                or chunk.get("delta", {}).get("content")
+                                or chunk.get("message")
+                                or ""
+                            )
+                            if piece:
+                                answer_parts.append(piece)
         except httpx.HTTPError as exc:
             logger.error("LLM HTTP error: %s", exc)
-            raise LLMConnectionError(self._endpoint) from exc
+            raise LLMConnectionError(self._chat_endpoint) from exc
+
+        raw = "".join(answer_parts).strip()
+        if not raw:
+            logger.error("LLM SSE 응답 비어있음")
+            raise LLMConnectionError(self._chat_endpoint)
+        return self._extract_json(raw)
+
+    @staticmethod
+    def _parse_sse_line(line: str) -> dict | None:
+        """SSE 한 줄을 파싱. data: <json> 형태만 처리, 종료/주석/빈줄은 None."""
+        if not line or not line.startswith("data: "):
+            return None
+        payload = line[6:].strip()
+        if not payload or payload == "[DONE]":
+            return None
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError:
+            return None
 
     @staticmethod
     def _extract_json(raw: str) -> str:
@@ -274,7 +361,6 @@ Git 머지 충돌이 발생했습니다. 각 파일의 충돌을 분석하고 �
         raw = raw.strip()
         if raw.startswith("```"):
             lines = raw.split("\n")
-            # 첫 줄(```json)과 마지막 줄(```) 제거
             json_lines = []
             inside = False
             for line in lines:

@@ -7,7 +7,7 @@ from app.auth.models import UserModel
 from app.shared.infrastructure.security import (
     hash_password, verify_password,
     create_access_token, create_refresh_token,
-    encrypt_api_key, decrypt_api_key,
+    encrypt_api_key,
 )
 
 
@@ -81,15 +81,6 @@ async def update_api_key(db: AsyncSession, user_id: int, plain_key: str) -> bool
     user.encrypted_llm_api_key = encrypt_api_key(plain_key)
     await db.commit()
     return True
-
-
-def get_user_api_key(user: UserModel) -> str | None:
-    if not user.encrypted_llm_api_key:
-        return None
-    try:
-        return decrypt_api_key(user.encrypted_llm_api_key)
-    except Exception:
-        return None
 
 
 async def change_password(db: AsyncSession, user_id: int, current_pw: str, new_pw: str) -> bool:

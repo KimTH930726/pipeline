@@ -35,7 +35,7 @@ def _get_event_bus() -> InMemoryEventBus:
 
 
 def _build_runner(bus: InMemoryEventBus = Depends(_get_event_bus)) -> BuildProcessRunner:
-    llm = VPCLLMAdapter(settings.LLM_ENDPOINT)
+    llm = VPCLLMAdapter()
     return BuildProcessRunner(SessionFactory, llm, bus, git_repo=get_git_repo())
 
 

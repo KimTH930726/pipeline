@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 GitHub/GitLab 대체용 자체 SCM & 배포 포탈 (StarbucksCSP Agentic Deployment).
-브랜치 관리 → 코드 리뷰(AI 분석 + 승인) → 배포(빌드→머지→Docker) → 원복. 사용자 인증 + 사용자별 LLM Key.
+브랜치 관리 → 코드 리뷰(AI 분석 + 승인) → 배포(빌드→머지→Docker) → 원복. 사용자 인증, LLM은 시스템 단일 자격증명.
 
 ## Tech Stack
 - **Frontend**: React 19 + TypeScript, Tailwind CSS, Vite, Zustand, react-markdown
 - **Backend**: Python 3.11, FastAPI (async), SQLAlchemy 2.0 async + aiosqlite
 - **SCM**: GitPython (싱글턴 `get_git_repo()`)
-- **LLM**: DevX MCP API (InHouse Gemini) — 사용자별 API Key, 미설정 시 400 에러
-- **Auth**: JWT (python-jose) + bcrypt + Fernet (API Key 암호화)
+- **LLM**: DevX Gateway — client_credentials OAuth2 토큰 발급 → Bearer + SSE streaming, 시스템 단일 자격증명(`LLM_CLIENT_ID/SECRET`), 토큰 캐싱(`expires_in` 활용), SSE 모아서 JSON 추출
+- **Auth**: JWT (python-jose) + bcrypt + Fernet (시크릿 암호화)
 - **Real-time**: WebSocket (빌드 로그 + 파이프라인 단계 스트리밍)
 
 ## Commands
@@ -30,7 +30,7 @@ backend/app/<context>/
 
 | Context | Responsibility |
 |---------|---------------|
-| **auth** | JWT 인증, 회원가입(관리자 승인), 비밀번호 변경, API Key 관리 |
+| **auth** | JWT 인증, 회원가입(관리자 승인), 비밀번호 변경 |
 | **git** | 브랜치 CRUD, diff(`main..branch`), squash merge(fallback checkout), revert HEAD, 충돌 감지/해결, 배포간 diff |
 | **review** | 코드 리뷰 승인/반려 + acted_by 추적, 배포 성공 시 PENDING 자동 초기화 |
 | **deployment** | 빌드→충돌체크→squash 머지→Docker 재기동(backend restart/frontend --no-cache rebuild), 이력(상태+날짜 필터, 페이징), 배포 비교, 파이프라인 4단계 실시간 UI, 배포 성공 시 샌드박스 자동 삭제 |
@@ -47,7 +47,7 @@ backend/app/<context>/
 - **Deploy Docker**: Docker 재기동 전 `git checkout main` 강제, backend=`compose restart`, frontend=`compose build --no-cache` + `up --no-deps` (compose `-p` 프로젝트명 지정)
 - **Rollback**: `git revert HEAD` → `BuildProcessRunner.run(is_rollback=True)` — 머지 단계 스킵, Docker 재기동만 수행
 - **Subprocess**: stdout/stderr 합침(`STDOUT`), `read(4096)` 청크 단위 — Docker compose 출력 hang 방지
-- **LLM**: DevX InHouse API (blocking 모드, Bearer 인증, 사용자별 키)
+- **LLM**: DevX Gateway — `_get_access_token()` 캐싱(만료 30초 전 갱신) + SSE 스트리밍을 `answer` 필드 누적으로 모아서 JSON 추출. 시스템 단일 `CLIENT_ID/SECRET`
 - **Auth**: JWT access(8h)/refresh(7d), 회원가입→관리자 승인→활성화
 - **Frontend**: 탭 포커스 시 자동 리로드 (`useAutoRefresh`), 마크다운 렌더링
 - **Sandbox 빌드**: 컨테이너 내부 `docker build` (Dockerfile 캐시 레이어 활용, 폐쇄망 호환 — 패키지 변경 없을 시)
@@ -58,10 +58,12 @@ backend/app/<context>/
 |----------|---------|
 | `REPO_PATH` | Git repo 경로 |
 | `DATABASE_URL` | SQLite 경로 |
-| `LLM_ENDPOINT` | DevX MCP API URL |
-| `LLM_API_KEY` | 시스템 LLM Key (fallback) |
+| `LLM_AUTH_ENDPOINT` | DevX Gateway 토큰 발급 URL (client_credentials) |
+| `LLM_CHAT_ENDPOINT` | DevX Gateway 채팅 URL (SSE) |
+| `LLM_CLIENT_ID` / `LLM_CLIENT_SECRET` | 시스템 단일 자격증명 (.env로 관리) |
+| `LLM_AGENT_ID` / `LLM_AGENT_CODE` | 호출 대상 Agent (Dify workflow) |
 | `JWT_SECRET_KEY` | JWT 서명 키 |
-| `FERNET_SECRET_KEY` | API Key 암호화 키 (.env로 관리) |
+| `FERNET_SECRET_KEY` | 시크릿 암호화 키 (.env로 관리) |
 | `DEPLOY_TARGET_PATH` | 배포 대상 호스트 경로 (docker-compose + 샌드박스 빌드) |
 | `DEPLOY_COMPOSE_PROJECT` | 배포 대상 Docker Compose 프로젝트명 (기본: smagentlab) |
 | `DEPLOY_COMPOSE_OVERRIDES` | 추가 compose 오버라이드 (콤마 구분, 폐쇄망 prod: `docker-compose.prod.yml`) |
@@ -73,7 +75,7 @@ backend/app/<context>/
 ## API Routes
 ```
 Auth:     POST /api/auth/login|signup|register|refresh
-          GET  /api/auth/me|users  PUT /api/auth/me/password|api-key
+          GET  /api/auth/me|users  PUT /api/auth/me/password
           PUT  /api/auth/users/{id}/activate|deactivate
 Git:      GET/POST/DELETE /api/git/branches
           GET /api/git/branches/files|diff
